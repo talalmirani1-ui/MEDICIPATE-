@@ -1,0 +1,72 @@
+MEDICIPATE — CONTENT + TECHNICAL AUDIT REPORT
+Date: 21 August 2026
+
+SOURCE PACKAGE
+The audit was performed on the latest MEDICIPATE-PHASE-1 package supplied in this conversation.
+
+QUESTION BANK
+- Total questions present: 3,575
+- Unique question IDs: 3,575
+- Invalid correct-answer indexes: 0
+- Duplicate answer options within a question: 0
+- Phase 1 Killer Questions: 10 (killer-p1-01 through killer-p1-10)
+- Phase 1 Killer Questions use five answer choices and include explanation, distractor logic, Killer Concept, Killer Clue, Common Trap, and reasoning chain fields.
+- The Free QBank UI remains limited to 5 questions per selected section; Premium receives the full selected pool.
+
+TARGETED CONTENT CORRECTIONS
+The audit found and corrected eight clearly verifiable option/answer-quality issues in the imported bank:
+- indexq726 — removed a redundant Graves disease option and replaced the distractors with clinically meaningful alternatives; correct answer remains Graves disease.
+- indexq451 — replaced an overly overlapping pericarditis distractor while preserving mitral valve prolapse as the correct answer.
+- indexq1054 — replaced generic/overlapping pneumonia distractors with clinically distinct alternatives for Pneumocystis pneumonia.
+- indexq1058 — replaced generic pneumonia distractors with clinically distinct pulmonary-hypertension differentials.
+- indexq1060 — replaced generic/overlapping pneumonia distractors with clinically distinct sarcoidosis differentials.
+- indexq1064 — replaced generic/overlapping pneumonia distractors and corrected the answer index for cystic fibrosis.
+- indexq1076 — replaced cirrhosis distractors and corrected the answer index for diverticulitis.
+- indexq1083 — replaced cirrhosis distractors and corrected the answer index for GERD.
+
+LIBRARY ACCESS MODEL
+- Library systems: 19
+- Library topics: 476
+- Every system now uses topic-based access rather than locking an entire system.
+- For each system, the first meaningful half of complete topics is FREE and the remaining topics are PREMIUM.
+- Odd topic counts use the ceiling for FREE (e.g. 43 topics = 22 FREE + 21 PREMIUM).
+- A FREE topic is complete; it is not cut off mid-article.
+- Premium users can access both tiers.
+- The single-topic Obstetrics system currently contains 1 topic, so it is necessarily FREE-only; no artificial Premium topic was invented solely to force a numeric split.
+
+STUDY METHODS
+- Existing study-method collection: 9 methods.
+- 4 foundational methods are FREE.
+- 5 advanced methods are PREMIUM.
+- Free methods remain fully usable; Premium methods are separately locked.
+
+AUTHENTICATION / PROFILE
+- Google Sign-In option and Google authentication code were removed as previously requested.
+- Email/password login and signup remain.
+- Account profile data is persisted locally by email key; passwords are explicitly removed before profile persistence.
+- Profile completion fields remain available for name, contact number, and address.
+
+QUESTION INTERACTION
+- Selecting an answer immediately evaluates the MCQ.
+- Correct/incorrect feedback is generated from the same question object used for the selected question.
+- The correct answer is highlighted.
+- Explanation and available high-yield fields are displayed.
+- Next/Finish appears only after an answer has been evaluated.
+- Final result screen remains available.
+- Android/browser Back handling uses history state so opening the QBank modal does not require exiting the site/app view.
+
+TECHNICAL CHECKS
+- Inline JavaScript syntax: PASS
+- Netlify function JavaScript syntax: PASS
+- Duplicate HTML IDs: 0
+- PWA manifest present: YES
+- Service worker present: YES
+- MEDICIPATE logo assets present: YES
+- Existing Netlify payment functions preserved.
+- Existing PWA files were not replaced unnecessarily.
+
+IMPORTANT MEDICAL-EDITORIAL LIMITATION
+The imported legacy bank contains thousands of source-derived questions with varying levels of detail. The automated audit verifies structural integrity and the targeted corrections above, but it should not be represented as a substitute for a line-by-line specialist editorial review of every medical claim. The new Phase 1 Killer Questions were reviewed for internal answer/explanation consistency and board-style educational logic.
+
+NEXT PHASE STATUS
+The website is ready for the next 50-question phase. No additional 50-question batch was generated during this audit, so the approval/phase workflow remains intact.
