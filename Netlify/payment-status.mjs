@@ -1,4 +1,4 @@
-import { readOrder, writeOrder } from '../lib/rapid-store.mjs';
+import { readOrder, writeOrder } from './rapid-store.mjs';
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {

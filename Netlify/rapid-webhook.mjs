@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { readOrder, writeOrder } from '../lib/rapid-store.mjs';
+import { readOrder, writeOrder } from './rapid-store.mjs';
 
 function textResponse(text, status = 200) {
   return new Response(text, { status, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });

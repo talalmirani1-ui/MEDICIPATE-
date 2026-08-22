@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { readOrder, writeOrder } from '../lib/rapid-store.mjs';
+import { readOrder, writeOrder } from './rapid-store.mjs';
 
 const PLANS = Object.freeze({
   monthly:    { label: 'Monthly', amount: 499,  currency: 'PKR', days: 30 },
