@@ -1,0 +1,10 @@
+MEDICIPATE NOMES integration
+Source: existing NUMS question bank only.
+Strict filter: mbbs + NUMS + exact selected year + exact selected subject + MCQ options.
+
+Update 2026-08-22:
+- NOMES now shows the existing NUMS subjects year-wise using the existing MBBS/NUMS year map.
+- Subject options display the actual compatible NUMS MCQ count for the selected year + subject.
+- Explicitly year-tagged NUMS questions are matched to that selected year.
+- Legacy NUMS questions without a year are eligible only when their subject is explicitly offered in the selected NUMS year; they never fall back to another exam board or unrelated subject.
+- No question records were duplicated or moved into a separate NOMES database.
