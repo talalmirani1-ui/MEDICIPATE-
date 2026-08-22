@@ -1,0 +1,17 @@
+MEDICIPATE QBANK EXPANSION REPORT — 2026-08-21
+
+Original questions: 3575
+New questions: 350
+Final questions: 3925
+
+USMLE Step 1: +50 new; final 1121
+USMLE Step 2 CK: +50 new; final 837
+MBBS Pakistan: +50 new; final 440
+NUMS: +50 new; final 692
+RMU: +50 new; final 392
+UHS: +50 new; final 391
+General Practice: +50 new; final 52
+
+NOMES source rule: NUMS + selected year + selected subject only.
+NUMS expansion includes explicit year/yearLabel metadata so newly added records can participate in NOMES when the selected filters match.
+No existing question records were deleted.
