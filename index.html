@@ -3,9 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#061326">
-<link rel="apple-touch-icon" href="/icons/icon-192.png">
 <title>MEDICIPATE — USMLE & MBBS Exam Prep</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -961,6 +958,8 @@
       <a href="#qbank" onclick="if(window.MEDICIPATEQBank) window.MEDICIPATEQBank.open();">Question Bank</a>
       <a href="#library">Library</a>
       <a href="#tools">Medical Tools</a>
+      <a href="#" onclick="mpShowPage('about-us');return false;">About Us</a>
+      <a href="#" onclick="mpShowPage('payment-info');return false;">How Payment Works</a>
     </div>
     <div class="nav-auth">
       <button class="btn mp-install-btn" id="mpInstallBtn" type="button" aria-label="Install MEDICIPATE app" onclick="installMEDICIPATE()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"></path><path d="m7 10 5 5 5-5"></path><path d="M5 21h14"></path></svg><span>Install App</span></button>
@@ -1239,11 +1238,6 @@
   </div>
 </div>
 
-<div class="phase-banner">
-  <span>🚧</span>
-  <div><b>Phase 3 — Full Question Bank.</b> Exam → subject → system/topic → count → timer flow, filters (difficulty, status, bookmarks, board, search), bookmarking, reporting, high-yield takeaways, and results with subject/system breakdown + weak areas are all working on sample MCQs clearly marked "DEMO". Real content import, saved progress across sessions, the Library, and calculators are still coming in later phases.</div>
-</div>
-
 <main>
   <section class="section" id="qbank">
     <div class="section-head">
@@ -1347,7 +1341,7 @@
         <a href="tel:+923166323085">+92 316 6323085</a>
       </span>
       <span>Business Address:
-        Tehsil &amp; District Layyah, Post Office 139A/TDA
+        Chak No 139A, TDA, Layyah
       </span>
     </div>
 
@@ -1357,6 +1351,196 @@
   </div>
 </footer>
 </div><!-- /publicSite -->
+
+<!-- ============================================================
+     STANDALONE PAGE: About Us / Business Model
+     Shown/hidden via JS like a separate page (see mpPageRouter)
+     ============================================================ -->
+<div id="aboutPage" style="display:none;">
+  <nav class="nav">
+    <div class="nav-inner">
+      <a class="logo" href="#" onclick="mpGoHome();return false;" style="text-decoration:none;">
+        <span style="display:inline-flex;align-items:center;gap:10px;">
+          <svg class="logo-pulse" viewBox="0 0 24 14" fill="none" width="20" height="14"><path d="M0 7H6L8 2L11 12L14 5L16 7H24" stroke="#12A39A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          MEDICIPATE
+        </span>
+      </a>
+      <div class="nav-links">
+        <a href="#" onclick="mpGoHome();return false;">Question Bank</a>
+        <a href="#" onclick="mpGoHome();return false;">Library</a>
+        <a href="#" onclick="mpGoHome();return false;">Medical Tools</a>
+        <a href="#about-us" style="color:var(--off);">About Us</a>
+        <a href="#payment-info" onclick="mpShowPage('payment-info');return false;">How Payment Works</a>
+      </div>
+      <div class="nav-auth">
+        <button class="btn btn-ghost" onclick="mpGoHome();">Back to Home</button>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <section class="section" id="business-model">
+      <div class="section-head">
+        <span class="section-eyebrow">About MEDICIPATE</span>
+        <h2>Our Business Model &amp; Customer Journey</h2>
+      </div>
+      <div class="pillars">
+        <div class="pillar">
+          <div class="pillar-icon" style="background:rgba(18,163,154,0.1); color:var(--teal);">🎓</div>
+          <h3>What We Do</h3>
+          <p>MEDICIPATE is an online exam-preparation platform for medical students preparing for the USMLE and MBBS exams. We provide a structured question bank, a high-yield study library, past-paper archives, and study-planning tools, all accessed through a subscription-based website.</p>
+        </div>
+        <div class="pillar">
+          <div class="pillar-icon" style="background:rgba(18,163,154,0.1); color:var(--teal);">🧭</div>
+          <h3>How Students Use the Platform</h3>
+          <p>A student creates a free account and can immediately access a limited set of questions and library content. To unlock the full question bank, complete mock exams, and advanced analytics, the student upgrades to a paid plan shown on our pricing page, with the plan duration and included features clearly listed before purchase.</p>
+        </div>
+        <div class="pillar">
+          <div class="pillar-icon" style="background:rgba(18,163,154,0.1); color:var(--teal);">🔒</div>
+          <h3>Digital Delivery, No Physical Goods</h3>
+          <p>All content is delivered digitally inside the student's account immediately after payment is confirmed — there is no physical inventory, shipping, or delivery involved. Every purchase, renewal, and access period is tracked against the student's account for support and billing purposes.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="mp-compliance-footer">
+      <div class="mp-compliance-title">MEDICIPATE — Legal &amp; Contact</div>
+      <div class="mp-compliance-grid" aria-label="Legal policy pages">
+        <a href="#" onclick="mpGoHome();openMpPolicy('privacy');return false;">Privacy Policy</a>
+        <a href="#" onclick="mpGoHome();openMpPolicy('refund');return false;">Refund Policy</a>
+        <a href="#" onclick="mpGoHome();openMpPolicy('terms');return false;">Terms &amp; Conditions</a>
+      </div>
+      <div class="mp-contact-row">
+        <span>Business Email:
+          <a href="mailto:talalmirani@gmail.com">talalmirani@gmail.com</a>
+        </span>
+        <span>Contact Number:
+          <a href="tel:+923046164139">+92 304 6164139</a>
+          <span style="margin-left:8px;">|</span>
+          <a href="tel:+923166323085">+92 316 6323085</a>
+        </span>
+        <span>Business Address:
+          Chak No 139A, TDA, Layyah
+        </span>
+      </div>
+      <div style="margin-top:16px;">
+        © 2026 MEDICIPATE All Rights Reserved
+      </div>
+    </div>
+  </footer>
+</div><!-- /aboutPage -->
+
+<!-- ============================================================
+     STANDALONE PAGE: Payment Gateway Use Case
+     ============================================================ -->
+<div id="paymentInfoPage" style="display:none;">
+  <nav class="nav">
+    <div class="nav-inner">
+      <a class="logo" href="#" onclick="mpGoHome();return false;" style="text-decoration:none;">
+        <span style="display:inline-flex;align-items:center;gap:10px;">
+          <svg class="logo-pulse" viewBox="0 0 24 14" fill="none" width="20" height="14"><path d="M0 7H6L8 2L11 12L14 5L16 7H24" stroke="#12A39A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          MEDICIPATE
+        </span>
+      </a>
+      <div class="nav-links">
+        <a href="#" onclick="mpGoHome();return false;">Question Bank</a>
+        <a href="#" onclick="mpGoHome();return false;">Library</a>
+        <a href="#" onclick="mpGoHome();return false;">Medical Tools</a>
+        <a href="#" onclick="mpShowPage('about-us');return false;">About Us</a>
+        <a href="#payment-info" style="color:var(--off);">How Payment Works</a>
+      </div>
+      <div class="nav-auth">
+        <button class="btn btn-ghost" onclick="mpGoHome();">Back to Home</button>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <section class="section" id="payment-use-case">
+      <div class="section-head">
+        <span class="section-eyebrow">How Payment Works</span>
+        <h2>Payment Gateway Use Case</h2>
+      </div>
+      <div class="pillars">
+        <div class="pillar">
+          <div class="pillar-icon" style="background:rgba(232,84,62,0.1); color:var(--coral);">1</div>
+          <h3>Student Selects a Plan</h3>
+          <p>From the Pricing / Upgrade page inside their dashboard, the student chooses a subscription plan. The price, duration, and included features (full Qbank, library, mock exams, analytics) are displayed in PKR before checkout begins.</p>
+        </div>
+        <div class="pillar">
+          <div class="pillar-icon" style="background:rgba(232,84,62,0.1); color:var(--coral);">2</div>
+          <h3>Secure Checkout via Payment Gateway</h3>
+          <p>The student is redirected to our payment gateway checkout page over a secure HTTPS connection to pay by card or wallet. MEDICIPATE never stores card details — all payment data is handled directly by the gateway.</p>
+        </div>
+        <div class="pillar">
+          <div class="pillar-icon" style="background:rgba(232,84,62,0.1); color:var(--coral);">3</div>
+          <h3>Instant Account Activation</h3>
+          <p>Once the gateway confirms a successful transaction, MEDICIPATE automatically upgrades the student's account to the purchased plan and grants access to premium content immediately, with a receipt sent to the student's registered email.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="mp-compliance-footer">
+      <div class="mp-compliance-title">MEDICIPATE — Legal &amp; Contact</div>
+      <div class="mp-compliance-grid" aria-label="Legal policy pages">
+        <a href="#" onclick="mpGoHome();openMpPolicy('privacy');return false;">Privacy Policy</a>
+        <a href="#" onclick="mpGoHome();openMpPolicy('refund');return false;">Refund Policy</a>
+        <a href="#" onclick="mpGoHome();openMpPolicy('terms');return false;">Terms &amp; Conditions</a>
+      </div>
+      <div class="mp-contact-row">
+        <span>Business Email:
+          <a href="mailto:talalmirani@gmail.com">talalmirani@gmail.com</a>
+        </span>
+        <span>Contact Number:
+          <a href="tel:+923046164139">+92 304 6164139</a>
+          <span style="margin-left:8px;">|</span>
+          <a href="tel:+923166323085">+92 316 6323085</a>
+        </span>
+        <span>Business Address:
+          Chak No 139A, TDA, Layyah
+        </span>
+      </div>
+      <div style="margin-top:16px;">
+        © 2026 MEDICIPATE All Rights Reserved
+      </div>
+    </div>
+  </footer>
+</div><!-- /paymentInfoPage -->
+
+<script>
+  function mpShowPage(page){
+    document.getElementById('publicSite').style.display = 'none';
+    document.getElementById('aboutPage').style.display = 'none';
+    document.getElementById('paymentInfoPage').style.display = 'none';
+    if(page === 'about-us'){
+      document.getElementById('aboutPage').style.display = 'block';
+      history.pushState({page:'about-us'}, '', '#about-us');
+    } else if(page === 'payment-info'){
+      document.getElementById('paymentInfoPage').style.display = 'block';
+      history.pushState({page:'payment-info'}, '', '#payment-info');
+    } else {
+      document.getElementById('publicSite').style.display = 'block';
+      history.pushState({page:'home'}, '', window.location.pathname);
+    }
+    window.scrollTo(0,0);
+  }
+  function mpGoHome(){ mpShowPage('home'); }
+  window.addEventListener('DOMContentLoaded', function(){
+    if(window.location.hash === '#about-us') mpShowPage('about-us');
+    else if(window.location.hash === '#payment-info') mpShowPage('payment-info');
+  });
+  window.addEventListener('popstate', function(e){
+    var page = (e.state && e.state.page) || 'home';
+    document.getElementById('publicSite').style.display = page==='home' ? 'block' : 'none';
+    document.getElementById('aboutPage').style.display = page==='about-us' ? 'block' : 'none';
+    document.getElementById('paymentInfoPage').style.display = page==='payment-info' ? 'block' : 'none';
+  });
+</script>
+
 
 <!-- ============================================================
      STUDENT DASHBOARD (authenticated experience) — see JS CONFIG
@@ -1419,7 +1603,7 @@
         <div class="mp-dashboard-footer-contact">
           <span><strong>Business Email:</strong> <a href="mailto:talalmirani@gmail.com">talalmirani@gmail.com</a></span>
           <span><strong>Contact:</strong> <a href="tel:+923046164139">+92 304 6164139</a> · <a href="tel:+923166323085">+92 316 6323085</a></span>
-          <span><strong>Address:</strong> Tehsil &amp; District Layyah, Post Office 139A/TDA</span>
+          <span><strong>Address:</strong> Chak No 139A, TDA, Layyah</span>
         </div>
         <div class="mp-dashboard-footer-copy">© 2026 MEDICIPATE All Rights Reserved</div>
       </footer>
