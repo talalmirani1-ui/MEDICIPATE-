@@ -1,12 +1,3 @@
-// --- Monetag config (must stay at top) ---
-self.options = {
-  "domain": "5gvci.com",
-  "zoneId": 11673008
-}
-self.lary = ""
-importScripts('https://5gvci.com/act/files/service-worker.min.js?r=sw')
-
-// --- Your PWA cache logic ---
 const CACHE = 'medicipate-shell-v1';
 const SHELL = [
   '/',
