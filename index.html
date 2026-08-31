@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head> 
-  
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MEDICIPATE — USMLE & MBBS Exam Prep</title>
@@ -94,8 +93,15 @@
     color:rgba(243,245,242,0.7); font-size:1.05rem; max-width:560px; margin:0 auto 36px;
     line-height:1.6;
   }
-  .hero-ctas{display:flex; gap:14px; justify-content:center; margin-bottom:56px; flex-wrap:wrap;}
+  .hero-ctas{display:flex; gap:14px; justify-content:center; margin-bottom:22px; flex-wrap:wrap;}
   .btn-lg{padding:14px 28px; font-size:0.95rem; border-radius:8px;}
+  .hero-proof{
+    display:flex; flex-wrap:wrap; justify-content:center; align-items:center;
+    gap:8px 14px; margin-bottom:40px;
+    font-family:'IBM Plex Mono',monospace; font-size:.74rem; letter-spacing:.02em;
+    color:rgba(243,245,242,0.55); text-transform:uppercase;
+  }
+  .hero-proof span[aria-hidden]{color:rgba(243,245,242,0.3);}
 
   /* vitals line signature */
   .vitals-wrap{
@@ -653,6 +659,20 @@
     font-family:'IBM Plex Mono',monospace; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em;
     color:var(--coral); margin-bottom:8px; display:block;
   }
+  .mp-manual-pay-grid{
+    border:1px solid rgba(11,30,61,0.1); border-radius:10px; overflow:hidden;
+  }
+  .mp-manual-pay-row{
+    display:flex; justify-content:space-between; gap:12px; padding:10px 14px;
+    font-size:.86rem; color:var(--navy-deep);
+    border-bottom:1px solid rgba(11,30,61,0.08);
+  }
+  .mp-manual-pay-row:last-child{border-bottom:none;}
+  .mp-manual-pay-row span{color:var(--slate);}
+  .mp-manual-pay-ref{
+    margin-top:12px; font-size:.82rem; color:var(--slate);
+    background:rgba(18,163,154,0.08); border-radius:8px; padding:10px 12px;
+  }
 
   /* timer widget */
   .timer-widget{background:#fff; border-radius:16px; padding:36px; text-align:center; border:1px solid rgba(11,30,61,0.08); max-width:420px; margin:0 auto;}
@@ -711,6 +731,19 @@
     cursor:pointer;
   }
   .mp-compliance-grid a:hover{color:var(--teal);}
+  .mp-footer-subheading{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:.72rem;
+    text-transform:uppercase;
+    letter-spacing:.1em;
+    color:var(--teal);
+    text-align:center;
+    margin:0 0 10px;
+  }
+  .mp-footer-subheading.mp-footer-subheading-spaced{margin-top:24px;}
+  .mp-footer-toggle{cursor:pointer; user-select:none; display:inline-flex; align-items:center; justify-content:center; gap:6px; width:100%;}
+  .mp-footer-toggle:hover{color:#fff;}
+  .mp-footer-toggle-icon{font-family:'IBM Plex Mono',monospace; font-size:.9rem; line-height:1;}
   .mp-contact-row{
     display:flex;
     flex-wrap:wrap;
@@ -722,6 +755,26 @@
   }
   .mp-contact-row a{color:var(--teal); text-decoration:none;}
   .mp-contact-row a:hover{text-decoration:underline;}
+  .mp-social-row{
+    display:flex;
+    justify-content:center;
+    gap:12px;
+    margin-top:18px;
+  }
+  .mp-social-btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:38px;
+    height:38px;
+    border-radius:50%;
+    background:rgba(243,245,242,0.08);
+    border:1px solid rgba(243,245,242,0.18);
+    color:var(--off);
+    transition:background .15s ease, border-color .15s ease, transform .15s ease;
+  }
+  .mp-social-btn:hover{background:var(--teal); border-color:var(--teal); transform:translateY(-2px);}
+  .mp-social-btn svg{width:18px; height:18px;}
   .mp-policy-overlay{
     position:fixed;
     inset:0;
@@ -944,6 +997,8 @@
 .nomes-result{text-align:center}.nomes-result .score{font-size:42px;font-weight:900;color:#12a39a}.nomes-result .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:14px 0}.nomes-result .stat{padding:10px;border:1px solid rgba(11,30,61,.1);border-radius:9px;background:#f8fafc}.nomes-result .stat b{display:block;font-size:18px;color:#0b1e3d}.nomes-result .stat span{font-size:9px;color:#667085}.nomes-review-list{display:grid;gap:7px;text-align:left;margin-top:14px}.nomes-review-item{border:1px solid rgba(11,30,61,.1);border-radius:9px;padding:10px;background:#fff;font-size:10.5px;line-height:1.5}.nomes-review-item .rhead{font-weight:800;margin-bottom:4px;color:#0b1e3d}
 @media(max-width:700px){.nomes-setup-grid{grid-template-columns:1fr}.nomes-studentbar{grid-template-columns:1fr}.nomes-grid{grid-template-columns:repeat(5,minmax(0,1fr))}.nomes-result .stats{grid-template-columns:repeat(2,1fr)}.nomes-topbar{align-items:flex-start}.nomes-subjectbar{flex-direction:column}}
 </style>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 </head>
 <body>
@@ -1216,11 +1271,16 @@
 <header class="hero">
   <div class="hero-inner">
     <div class="eyebrow">USMLE Step 1 · Step 2 CK · NUMS · RMU · UHS</div>
-    <h1>Find your <span>mastery pulse</span> before exam day.</h1>
-    <p>One platform for question practice, high-yield concept review, and the clinical tools you'll actually use on the wards.</p>
+    <h1>12,400+ questions. <span>One clear plan</span> for exam day.</h1>
+    <p>Timed blocks, killer-concept explanations, and a weak-area tracker built for MBBS and USMLE prep — start free, no card required.</p>
     <div class="hero-ctas">
-      <a class="btn btn-coral btn-lg" href="#qbank">Start a timed block</a>
+      <a class="btn btn-coral btn-lg" href="#qbank">Start free — first block on us</a>
       <a class="btn btn-ghost btn-lg" style="border-color:rgba(243,245,242,0.35);" href="#library">Browse the Library</a>
+    </div>
+    <div class="hero-proof">
+      <span>12,400+ MCQs</span><span aria-hidden="true">·</span>
+      <span>NUMS · RMU · UHS past papers</span><span aria-hidden="true">·</span>
+      <span>No credit card to start</span>
     </div>
     <div class="vitals-wrap">
       <svg class="vitals-line" viewBox="0 0 760 70" preserveAspectRatio="none">
@@ -1326,13 +1386,15 @@
   <div class="mp-compliance-footer">
     <div class="mp-compliance-title">MEDICIPATE — Legal &amp; Contact</div>
 
+    <div class="mp-footer-subheading">Legal</div>
     <div class="mp-compliance-grid" aria-label="Legal policy pages">
       <a href="#privacy-policy" onclick="openMpPolicy('privacy');return false;">Privacy Policy</a>
       <a href="#refund-policy" onclick="openMpPolicy('refund');return false;">Refund Policy</a>
       <a href="#terms-conditions" onclick="openMpPolicy('terms');return false;">Terms &amp; Conditions</a>
     </div>
 
-    <div class="mp-contact-row">
+    <div class="mp-footer-subheading mp-footer-subheading-spaced mp-footer-toggle" onclick="toggleMpContact(this)" role="button" tabindex="0" aria-expanded="false">Contact Us <span class="mp-footer-toggle-icon">+</span></div>
+    <div class="mp-contact-row" style="display:none;">
       <span>Business Email:
         <a href="mailto:talalmirani@gmail.com">talalmirani@gmail.com</a>
       </span>
@@ -1346,6 +1408,14 @@
       </span>
     </div>
 
+    <div class="mp-social-row" aria-label="Social media links">
+      <a class="mp-social-btn" href="https://www.facebook.com/share/1GJwBdh9Ej/" target="_blank" rel="noopener noreferrer" aria-label="MEDICIPATE on Facebook">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.51 1.49-3.89 3.77-3.89 1.09 0 2.24.2 2.24.2v2.47h-1.26c-1.24 0-1.63.78-1.63 1.57v1.88h2.78l-.44 2.91h-2.34V22c4.78-.76 8.44-4.92 8.44-9.94z"/></svg>
+      </a>
+      <a class="mp-social-btn" href="https://www.instagram.com/medicipate?igsi=bjM1ZjhtcGYwcjUy" target="_blank" rel="noopener noreferrer" aria-label="MEDICIPATE on Instagram">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.3"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/></svg>
+      </a>
+    </div>
     <div style="margin-top:16px;">
       © 2026 MEDICIPATE All Rights Reserved
     </div>
@@ -1408,12 +1478,14 @@
   <footer>
     <div class="mp-compliance-footer">
       <div class="mp-compliance-title">MEDICIPATE — Legal &amp; Contact</div>
+      <div class="mp-footer-subheading">Legal</div>
       <div class="mp-compliance-grid" aria-label="Legal policy pages">
         <a href="#" onclick="mpGoHome();openMpPolicy('privacy');return false;">Privacy Policy</a>
         <a href="#" onclick="mpGoHome();openMpPolicy('refund');return false;">Refund Policy</a>
         <a href="#" onclick="mpGoHome();openMpPolicy('terms');return false;">Terms &amp; Conditions</a>
       </div>
-      <div class="mp-contact-row">
+      <div class="mp-footer-subheading mp-footer-subheading-spaced mp-footer-toggle" onclick="toggleMpContact(this)" role="button" tabindex="0" aria-expanded="false">Contact Us <span class="mp-footer-toggle-icon">+</span></div>
+      <div class="mp-contact-row" style="display:none;">
         <span>Business Email:
           <a href="mailto:talalmirani@gmail.com">talalmirani@gmail.com</a>
         </span>
@@ -1425,6 +1497,14 @@
         <span>Business Address:
           Chak No 139A, TDA, Layyah
         </span>
+      </div>
+      <div class="mp-social-row" aria-label="Social media links">
+        <a class="mp-social-btn" href="https://www.facebook.com/share/1GJwBdh9Ej/" target="_blank" rel="noopener noreferrer" aria-label="MEDICIPATE on Facebook">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.51 1.49-3.89 3.77-3.89 1.09 0 2.24.2 2.24.2v2.47h-1.26c-1.24 0-1.63.78-1.63 1.57v1.88h2.78l-.44 2.91h-2.34V22c4.78-.76 8.44-4.92 8.44-9.94z"/></svg>
+        </a>
+        <a class="mp-social-btn" href="https://www.instagram.com/medicipate?igsi=bjM1ZjhtcGYwcjUy" target="_blank" rel="noopener noreferrer" aria-label="MEDICIPATE on Instagram">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.3"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/></svg>
+        </a>
       </div>
       <div style="margin-top:16px;">
         © 2026 MEDICIPATE All Rights Reserved
@@ -1487,12 +1567,14 @@
   <footer>
     <div class="mp-compliance-footer">
       <div class="mp-compliance-title">MEDICIPATE — Legal &amp; Contact</div>
+      <div class="mp-footer-subheading">Legal</div>
       <div class="mp-compliance-grid" aria-label="Legal policy pages">
         <a href="#" onclick="mpGoHome();openMpPolicy('privacy');return false;">Privacy Policy</a>
         <a href="#" onclick="mpGoHome();openMpPolicy('refund');return false;">Refund Policy</a>
         <a href="#" onclick="mpGoHome();openMpPolicy('terms');return false;">Terms &amp; Conditions</a>
       </div>
-      <div class="mp-contact-row">
+      <div class="mp-footer-subheading mp-footer-subheading-spaced mp-footer-toggle" onclick="toggleMpContact(this)" role="button" tabindex="0" aria-expanded="false">Contact Us <span class="mp-footer-toggle-icon">+</span></div>
+      <div class="mp-contact-row" style="display:none;">
         <span>Business Email:
           <a href="mailto:talalmirani@gmail.com">talalmirani@gmail.com</a>
         </span>
@@ -1504,6 +1586,14 @@
         <span>Business Address:
           Chak No 139A, TDA, Layyah
         </span>
+      </div>
+      <div class="mp-social-row" aria-label="Social media links">
+        <a class="mp-social-btn" href="https://www.facebook.com/share/1GJwBdh9Ej/" target="_blank" rel="noopener noreferrer" aria-label="MEDICIPATE on Facebook">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5.02 3.66 9.18 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.51 1.49-3.89 3.77-3.89 1.09 0 2.24.2 2.24.2v2.47h-1.26c-1.24 0-1.63.78-1.63 1.57v1.88h2.78l-.44 2.91h-2.34V22c4.78-.76 8.44-4.92 8.44-9.94z"/></svg>
+        </a>
+        <a class="mp-social-btn" href="https://www.instagram.com/medicipate?igsi=bjM1ZjhtcGYwcjUy" target="_blank" rel="noopener noreferrer" aria-label="MEDICIPATE on Instagram">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2.5" y="2.5" width="19" height="19" rx="5"/><circle cx="12" cy="12" r="4.3"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/></svg>
+        </a>
       </div>
       <div style="margin-top:16px;">
         © 2026 MEDICIPATE All Rights Reserved
@@ -1646,34 +1736,77 @@
   </div>
 </div>
 
+<!-- ---------- MANUAL PAYMENT MODAL (Rapid Gateway keys pending) ---------- -->
+<div class="modal-overlay upgrade-modal" id="manualPaymentOverlay" onclick="if(event.target===this) closeManualPaymentModal()">
+  <div class="modal">
+    <button class="modal-close" onclick="closeManualPaymentModal()">✕</button>
+    <span class="um-eyebrow">Complete your payment</span>
+    <h2 style="margin-bottom:6px;">Pay directly, activated by hand for now.</h2>
+    <div id="manualPaymentBody"></div>
+  </div>
+</div>
+
 <script>
-  // Persistent profile/session store. Passwords are NEVER stored in the browser.
+  // ===== SUPABASE SETUP =====
+  // 1) Create a free project at https://supabase.com
+  // 2) Project Settings → API → copy "Project URL" and "anon public" key below
+  // 3) Run the SQL from the setup guide (profiles table + RLS + redeem_code function)
+  const SUPABASE_URL = 'https://edbhfzsxueguzvrvgoib.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_tTJODPbpk-nXijvtLTHh-g_Ya2GYhl7';
+  const supabaseClient = (SUPABASE_URL.startsWith('http'))
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+  if(!supabaseClient){ console.warn('MEDICIPATE: Supabase not configured yet — auth is disabled until SUPABASE_URL/KEY are set.'); }
+
   let currentUser = null;
-  const MP_PROFILE_PREFIX = 'medicipateProfile:';
-  function profileKey(email){ return MP_PROFILE_PREFIX + String(email || '').trim().toLowerCase(); }
-  function readStoredProfile(email){
-    try {
-      const raw = localStorage.getItem(profileKey(email));
-      return raw ? JSON.parse(raw) : null;
-    } catch(e){ return null; }
+
+  async function loadProfileFromSupabase(supaUser){
+    if(!supaUser || !supabaseClient) return;
+    const { data: profile, error } = await supabaseClient
+      .from('profiles')
+      .select('*')
+      .eq('id', supaUser.id)
+      .single();
+    if(error){ console.error('profile load failed', error); return; }
+
+    const now = new Date();
+    const expiresAt = profile.plan_expires_at ? new Date(profile.plan_expires_at) : null;
+    const activePro = !!profile.is_pro && (!expiresAt || expiresAt > now);
+
+    currentUser = {
+      id: supaUser.id,
+      name: profile.name || supaUser.email.split('@')[0],
+      email: supaUser.email,
+      phone: profile.phone || '',
+      address: profile.address || '',
+      createdAt: profile.created_at,
+      isPro: activePro,
+      planId: profile.plan_id,
+      planLabel: profile.plan_label,
+      planAmount: profile.plan_amount,
+      planPaidAt: profile.plan_paid_at,
+      planExpiresAt: profile.plan_expires_at
+    };
+    userPlan = activePro ? 'pro' : 'free';
+
+    document.getElementById('accountName').textContent = currentUser.name;
+    document.getElementById('avatarInitial').textContent = currentUser.name.charAt(0).toUpperCase();
+    document.getElementById('accountChip').style.display = 'flex';
+    document.getElementById('navLoginBtn').style.display = 'none';
+    document.getElementById('navSignupBtn').style.display = 'none';
+    closeModal();
+    enterDashboard();
   }
-  function writeStoredProfile(profile){
-    if(!profile || !profile.email) return;
-    const clean = { ...profile };
-    delete clean.password; delete clean.pass;
-    clean.updatedAt = new Date().toISOString();
-    try { localStorage.setItem(profileKey(clean.email), JSON.stringify(clean)); } catch(e) {}
-    currentUser = clean;
-    try { sessionStorage.setItem('medicipateUser', JSON.stringify(clean)); } catch(e) {}
+
+  if(supabaseClient){
+    supabaseClient.auth.getSession().then(({ data: { session } }) => {
+      if(session?.user) loadProfileFromSupabase(session.user);
+    });
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      if(event === 'SIGNED_IN' && session?.user) loadProfileFromSupabase(session.user);
+      if(event === 'SIGNED_OUT') currentUser = null;
+    });
   }
-  try {
-    const savedUser = sessionStorage.getItem('medicipateUser');
-    if(savedUser) currentUser = JSON.parse(savedUser);
-    if(!currentUser){
-      const lastEmail = localStorage.getItem('medicipateLastEmail');
-      if(lastEmail) currentUser = readStoredProfile(lastEmail);
-    }
-  } catch(e) { /* ignore invalid session */ }
 
   function openModal(tab){
     document.getElementById('authOverlay').classList.add('open');
@@ -1696,7 +1829,7 @@
   function showError(id){ document.getElementById(id).classList.add('show'); }
   function isValidEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
 
-  function handleLogin(){
+  async function handleLogin(){
     clearErrors();
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
@@ -1704,11 +1837,14 @@
     if(!isValidEmail(email)){ showError('loginEmailError'); ok = false; }
     if(!password){ showError('loginPasswordError'); ok = false; }
     if(!ok) return;
+    if(!supabaseClient){ showToast('Login isn\'t connected yet — add your Supabase keys first.'); return; }
 
-    signInAs(email.split('@')[0], email);
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if(error){ showToast(error.message || 'Login failed.'); return; }
+    showToast(`Logged in as ${data.user.email}`);
   }
 
-  function handleSignup(){
+  async function handleSignup(){
     clearErrors();
     const name = document.getElementById('signupName').value.trim();
     const email = document.getElementById('signupEmail').value.trim();
@@ -1718,41 +1854,33 @@
     if(!isValidEmail(email)){ showError('signupEmailError'); ok = false; }
     if(!password || password.length < 8){ showError('signupPasswordError'); ok = false; }
     if(!ok) return;
+    if(!supabaseClient){ showToast('Signup isn\'t connected yet — add your Supabase keys first.'); return; }
 
-    signInAs(name, email);
+    const { data, error } = await supabaseClient.auth.signUp({
+      email, password, options: { data: { name } }
+    });
+    if(error){ showToast(error.message || 'Signup failed.'); return; }
+    if(!data.session){
+      showToast('Account created — check your email to confirm, then log in.');
+      switchTab('login');
+      return;
+    }
     showToast(`Account created — welcome, ${name}!`);
   }
 
-  function signInAs(name, email, extra={}){
-    const previous = readStoredProfile(email) || {};
-    currentUser = {
-      ...previous, ...extra,
-      name: name || previous.name || 'Student',
-      email: String(email || previous.email || '').trim().toLowerCase(),
-      createdAt: previous.createdAt || new Date().toISOString()
-    };
-    writeStoredProfile(currentUser);
-    try { localStorage.setItem('medicipateLastEmail', currentUser.email); } catch(e) {}
-    document.getElementById('accountName').textContent = currentUser.name;
-    document.getElementById('avatarInitial').textContent = currentUser.name.charAt(0).toUpperCase();
-    document.getElementById('accountChip').style.display = 'flex';
-    document.getElementById('navLoginBtn').style.display = 'none';
-    document.getElementById('navSignupBtn').style.display = 'none';
-    closeModal();
-    if(!document.getElementById('toast').classList.contains('show')){
-      showToast(`Logged in as ${currentUser.name}`);
-    }
-    enterDashboard();
-  }
-
-  function saveProfile(){
+  async function saveProfile(){
     if(!currentUser?.email) return;
     const name=(document.getElementById('profileName')?.value || '').trim();
     const phone=(document.getElementById('profilePhone')?.value || '').trim();
     const address=(document.getElementById('profileAddress')?.value || '').trim();
     if(!name){ showToast('Please enter your name.'); return; }
     currentUser={...currentUser,name,phone,address};
-    writeStoredProfile(currentUser);
+    if(supabaseClient){
+      const { error } = await supabaseClient.from('profiles')
+        .update({ name, phone, address })
+        .eq('id', currentUser.id);
+      if(error){ showToast('Could not save — please try again.'); return; }
+    }
     document.getElementById('accountName').textContent=name;
     document.getElementById('avatarInitial').textContent=name.charAt(0).toUpperCase();
     showToast('Profile saved successfully.');
@@ -1769,9 +1897,26 @@
   // Click account chip to log out (placeholder behavior for this phase)
   document.getElementById('accountChip').addEventListener('click', () => { doLogout(); });
 
-  function doLogout(){
+  async function redeemCode(){
+    if(!currentUser){ showToast('Please log in first.'); return; }
+    if(!supabaseClient){ showToast('Redeem isn\'t connected yet — add your Supabase keys first.'); return; }
+    const code = (prompt('Enter your MEDICIPATE Pro code:') || '').trim().toUpperCase();
+    if(!code) return;
+    const { data, error } = await supabaseClient.rpc('redeem_code', { p_code: code });
+    if(error || !data?.success){
+      showToast(error?.message || data?.message || 'That code is invalid or already used.');
+      return;
+    }
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if(session?.user) await loadProfileFromSupabase(session.user);
+    updatePlanBadge();
+    showToast('Pro unlocked! Enjoy the full question bank.');
+    showSection('profile');
+  }
+
+  async function doLogout(){
+    if(supabaseClient) await supabaseClient.auth.signOut();
     currentUser = null;
-    try { sessionStorage.removeItem('medicipateUser'); } catch(e) {}
     document.getElementById('accountChip').style.display = 'none';
     document.getElementById('navLoginBtn').style.display = 'inline-block';
     document.getElementById('navSignupBtn').style.display = 'inline-block';
@@ -1796,7 +1941,7 @@
       sixMonths: { amount: 2550, original: 5994, label: '6 Months' },
       yearly:    { amount: 4800, original: 11988, label: 'Yearly' }
     },
-    paymentsLive: true, // Rapid Gateway checkout is wired through Netlify Functions
+    paymentsLive: false, // Rapid Gateway API keys pending approval — manual payment fallback active
     menu: [
       { group:'Overview', items:[
         { id:'overview', label:'Dashboard', icon:'home' }
@@ -2797,8 +2942,11 @@
 
   /* ---- PROFILE ---- */
   function getPaidPlanDetails(){
-    try { return JSON.parse(localStorage.getItem('medicipatePaidPlan') || 'null'); }
-    catch(e){ return null; }
+    if(!currentUser?.isPro) return null;
+    return {
+      planId: currentUser.planId, planLabel: currentUser.planLabel,
+      amount: currentUser.planAmount, paidAt: currentUser.planPaidAt
+    };
   }
 
   function addMonthsSafe(date, months){
@@ -2920,6 +3068,9 @@
             </button>
             <button class="mp-profile-action" onclick="showSection('performance')">
               <span>📊</span><span>My Performance</span><span>›</span>
+            </button>
+            <button class="mp-profile-action" onclick="redeemCode()">
+              <span>🎟</span><span>Redeem code</span><span>›</span>
             </button>
             <button class="mp-profile-action" onclick="doLogout()">
               <span>↪</span><span>Log out</span><span>›</span>
@@ -3227,7 +3378,7 @@
         <div class="mp-checkout-note">
           ${CONFIG.paymentsLive
             ? 'Secure checkout via Rapid Gateway.'
-            : 'Checkout preview — no payment is charged in the current front-end demo.'}
+            : 'Card checkout is finishing setup — choose a plan and pay instantly via bank transfer, JazzCash, or Easypaisa instead.'}
         </div>
       </div>
     `;
@@ -3237,6 +3388,11 @@
     if(!currentUser || !currentUser.email){
       showToast('Please log in or create your MEDICIPATE account before checkout.');
       openModal('login');
+      return;
+    }
+
+    if(!CONFIG.paymentsLive){
+      openManualPaymentModal(cycle);
       return;
     }
 
@@ -3266,6 +3422,68 @@
     }
   }
 
+  /* ---- Manual payment fallback (while Rapid Gateway keys are pending approval) ---- */
+  const MANUAL_PAYMENT_DETAILS = {
+    bankName: 'Meezan Bank',
+    accountTitle: 'MEDICIPATE',
+    accountNumber: '0000-0000-0000',
+    iban: 'PK00 MEZN 0000 0000 0000 0000',
+    jazzcash: '0304 6164139',
+    easypaisa: '0316 6323085',
+    whatsapp: '923046164139'
+  };
+  function generateManualOrderRef(){
+    return 'MP-' + Date.now().toString(36).toUpperCase();
+  }
+  function openManualPaymentModal(cycle){
+    const plan = CONFIG.pricing[cycle];
+    if(!plan) return;
+    const orderRef = generateManualOrderRef();
+    try {
+      const pending = JSON.parse(localStorage.getItem('medicipateManualOrders') || '[]');
+      pending.push({
+        orderRef, planId: cycle, planLabel: plan.label, amount: plan.amount,
+        customer: { name: currentUser?.name, email: currentUser?.email },
+        createdAt: new Date().toISOString(), status: 'awaiting_confirmation'
+      });
+      localStorage.setItem('medicipateManualOrders', JSON.stringify(pending));
+    } catch(e) {}
+
+    const waMessage = encodeURIComponent(
+      `Hi MEDICIPATE, I've paid for the ${plan.label} plan (Rs. ${plan.amount}).\nOrder ref: ${orderRef}\nName: ${currentUser?.name || ''}\nEmail: ${currentUser?.email || ''}\nAttaching my payment screenshot now.`
+    );
+    const waLink = `https://wa.me/${MANUAL_PAYMENT_DETAILS.whatsapp}?text=${waMessage}`;
+
+    const overlay = document.getElementById('manualPaymentOverlay');
+    const body = document.getElementById('manualPaymentBody');
+    if(!overlay || !body) return;
+    body.innerHTML = `
+      <p style="margin:0 0 14px; color:var(--slate); font-size:.92rem;">
+        Card checkout is finishing gateway approval. Pay Rs. <strong>${plan.amount}</strong> for the
+        <strong>${plan.label}</strong> plan using any option below, then confirm on WhatsApp — most accounts
+        are activated within a few hours.
+      </p>
+      <div class="mp-manual-pay-grid">
+        <div class="mp-manual-pay-row"><span>Bank</span><strong>${MANUAL_PAYMENT_DETAILS.bankName}</strong></div>
+        <div class="mp-manual-pay-row"><span>Account Title</span><strong>${MANUAL_PAYMENT_DETAILS.accountTitle}</strong></div>
+        <div class="mp-manual-pay-row"><span>Account Number</span><strong>${MANUAL_PAYMENT_DETAILS.accountNumber}</strong></div>
+        <div class="mp-manual-pay-row"><span>IBAN</span><strong>${MANUAL_PAYMENT_DETAILS.iban}</strong></div>
+        <div class="mp-manual-pay-row"><span>JazzCash</span><strong>${MANUAL_PAYMENT_DETAILS.jazzcash}</strong></div>
+        <div class="mp-manual-pay-row"><span>Easypaisa</span><strong>${MANUAL_PAYMENT_DETAILS.easypaisa}</strong></div>
+      </div>
+      <div class="mp-manual-pay-ref">Order reference: <strong>${orderRef}</strong> — include this when you message us.</div>
+      <a class="btn btn-coral btn-lg" style="width:100%; justify-content:center; margin-top:16px;" href="${waLink}" target="_blank" rel="noopener noreferrer">
+        Send payment screenshot on WhatsApp
+      </a>
+      <button class="btn btn-ghost btn-lg" style="width:100%; justify-content:center; margin-top:10px;" onclick="closeManualPaymentModal()">I'll do this later</button>
+    `;
+    overlay.classList.add('open');
+  }
+  function closeManualPaymentModal(){
+    const overlay = document.getElementById('manualPaymentOverlay');
+    if(overlay) overlay.classList.remove('open');
+  }
+
   async function handleRapidGatewayReturn(){
     const params = new URLSearchParams(window.location.search);
     const orderId = params.get('orderId');
@@ -3278,13 +3496,13 @@
         const res = await fetch('/.netlify/functions/payment-status?orderId=' + encodeURIComponent(orderId), { cache:'no-store' });
         const data = await res.json().catch(() => ({}));
         if(data.status === 'paid'){
-          userPlan = 'pro';
-          try {
-            localStorage.setItem('medicipatePaidPlan', JSON.stringify({
-              planId:data.planId, planLabel:data.planLabel, amount:data.amount, paidAt:data.paidAt, orderId:data.orderId
-            }));
-            sessionStorage.removeItem('medicipatePendingOrder');
-          } catch(e) {}
+          // The Netlify webhook (server-side) is the one that marks profiles.is_pro = true in Supabase.
+          // Here we just refresh the client's copy of that profile.
+          if(supabaseClient){
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if(session?.user) await loadProfileFromSupabase(session.user);
+          }
+          sessionStorage.removeItem('medicipatePendingOrder');
           updatePlanBadge();
           showToast(`${data.planLabel} payment confirmed — MEDICIPATE Pro is active.`);
           showSection('profile');
@@ -3305,19 +3523,6 @@
   }
 
   window.addEventListener('DOMContentLoaded', () => {
-    try {
-      const paid = JSON.parse(localStorage.getItem('medicipatePaidPlan') || 'null');
-      if(paid && paid.planId){ userPlan = 'pro'; updatePlanBadge(); }
-    } catch(e) {}
-    if(currentUser){
-      try {
-        document.getElementById('accountName').textContent = currentUser.name;
-        document.getElementById('avatarInitial').textContent = currentUser.name.charAt(0).toUpperCase();
-        document.getElementById('accountChip').style.display = 'flex';
-        document.getElementById('navLoginBtn').style.display = 'none';
-        document.getElementById('navSignupBtn').style.display = 'none';
-      } catch(e) {}
-    }
     handleRapidGatewayReturn();
   });
 
@@ -3844,6 +4049,7 @@
     document.getElementById('quizScreen').style.display = 'none';
     document.getElementById('resultsScreen').style.display = 'block';
     document.getElementById('reviewCard').style.display = 'none';
+    nudgePwaInstall();
 
     const total = qbState.questions.length;
     const attempted = qbState.correctCount + qbState.incorrectCount;
@@ -4222,6 +4428,20 @@ document.getElementById('mp-qb-quiz-exit').onclick=()=>{stopTimer();quiz.classLi
 </div>
 
 <script>
+function toggleMpContact(el){
+  var row=el.nextElementSibling;
+  var icon=el.querySelector('.mp-footer-toggle-icon');
+  var isOpen=row.style.display==='block';
+  row.style.display=isOpen?'none':'block';
+  el.setAttribute('aria-expanded',isOpen?'false':'true');
+  if(icon) icon.textContent=isOpen?'+':'\u2212';
+}
+document.addEventListener('keydown', function(e){
+  if((e.key==='Enter'||e.key===' ') && e.target && e.target.classList && e.target.classList.contains('mp-footer-toggle')){
+    e.preventDefault();
+    toggleMpContact(e.target);
+  }
+});
 function openMpPolicy(type){
   var overlay=document.getElementById('mpPolicyOverlay');
   var title=document.getElementById('mpPolicyTitle');
@@ -4285,6 +4505,13 @@ if (currentUser) {
     showHint('If the install prompt is not available yet, open your browser menu and choose “Install app” or “Add to Home screen”.');
   };
   window.addEventListener('load',function(){if(isStandalone()&&btn())btn().style.display='none';});
+  window.nudgePwaInstall=function(){
+    if(isStandalone())return;
+    if(sessionStorage.getItem('mpInstallNudged'))return;
+    if(!deferredInstallPrompt)return;
+    sessionStorage.setItem('mpInstallNudged','1');
+    setTimeout(function(){showHint('Nice work! Add MEDICIPATE to your home screen for daily study reminders — tap the download icon above.');},1200);
+  };
 })();
 </script>
 
@@ -4297,29 +4524,6 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
-<!-- 1. Load the Supabase JavaScript Library -->
-<script src="https://jsdelivr.net"></script>
 
-<!-- 2. Connect your Netlify keys and turn on the Safety Guard -->
-<script>
-  // Netlify automatically replaces these with your real keys live!
-    const supabaseUrl = window.env?.SUPABASE_URL || "https://edbhfzsxueguzvrvgoib.supabase.co";
-      const supabaseAnonKey = window.env?.SUPABASE_ANON_KEY || "sb_publishable_tTJODPbpk-nXijvtLTHh-g_Ya2GYhl7";
-        
-          // Initialize the Supabase connection
-            const supabase = supabase.createClient(supabaseUrl, supabaseAnonKey);
-            
-              // ⚡ MASTER SAFETY GUARD: Instantly kicks out unverified users
-                supabase.auth.onAuthStateChange(async (event, session) => {
-                    if (session && session.user) {
-                          if (!session.user.email_confirmed_at) {
-                                  await supabase.auth.signOut();
-                                          alert("✉️ Verification Required: Please check your inbox and click the activation link to access Medicipate.");
-                                                  window.location.reload(); // Restarts page to clear the login state cleanly
-                                                        }
-                                                            }
-                                                              });
-                                                              </script>
-                                                              -->
 </body>
 </html>
