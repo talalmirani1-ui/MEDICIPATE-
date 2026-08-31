@@ -257,6 +257,29 @@
   }
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
 
+  .confirm-overlay{
+    position:fixed; inset:0; background:rgba(6,14,26,0.72); z-index:300;
+    display:none; align-items:center; justify-content:center; padding:20px;
+  }
+  .confirm-overlay.show{display:flex;}
+  .confirm-box{
+    background:var(--navy-deep); color:var(--off); border-radius:16px;
+    max-width:380px; width:100%; padding:32px 28px 26px; text-align:center;
+    box-shadow:0 20px 60px rgba(0,0,0,0.4); animation:confirmPop .25s ease;
+  }
+  @keyframes confirmPop{from{opacity:0; transform:scale(.94);} to{opacity:1; transform:scale(1);}}
+  .confirm-icon{
+    width:56px; height:56px; border-radius:50%; background:rgba(18,163,154,0.15);
+    color:var(--teal); display:flex; align-items:center; justify-content:center;
+    font-size:1.6rem; margin:0 auto 16px;
+  }
+  .confirm-box h3{font-size:1.15rem; margin-bottom:10px;}
+  .confirm-box p{font-size:0.92rem; color:var(--slate); line-height:1.5; margin-bottom:22px;}
+  .confirm-box button{
+    background:var(--teal); color:var(--navy-deep); border:none; border-radius:8px;
+    padding:11px 28px; font-size:0.92rem; font-weight:700; cursor:pointer;
+  }
+
   /* ---------- QBANK OVERLAY ---------- */
   .qbank-overlay{
     position:fixed; inset:0; background:var(--off); z-index:150;
@@ -1054,6 +1077,7 @@
         <div class="field-error" id="loginPasswordError">Enter your password.</div>
       </div>
       <button class="btn btn-coral btn-full" onclick="handleLogin()">Log in</button>
+      <div class="modal-switch-hint"><a onclick="handleForgotPassword()" style="color:var(--teal); cursor:pointer;">Forgot password?</a> · <a onclick="handleResendConfirmation()" style="color:var(--teal); cursor:pointer;">Resend confirmation email</a></div>
       <div class="modal-footnote">Don't have an account? <a onclick="switchTab('signup')">Sign up</a></div>
     </div>
 
@@ -1084,6 +1108,29 @@
 </div>
 
 <div class="toast" id="toast">✓ <span id="toastText">Signed in</span></div>
+
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-icon">✉️</div>
+    <h3>Check your email</h3>
+    <p>We've sent a confirmation link to your inbox. Please verify your email address, then log in to continue.</p>
+    <button onclick="document.getElementById('confirmOverlay').classList.remove('show')">Got it</button>
+  </div>
+</div>
+
+<div class="confirm-overlay" id="resetPasswordOverlay">
+  <div class="confirm-box" style="text-align:left;">
+    <div class="confirm-icon" style="margin:0 auto 16px;">🔒</div>
+    <h3 style="text-align:center;">Set a new password</h3>
+    <p style="text-align:center;">Choose a new password for your account.</p>
+    <div class="field">
+      <label for="newPassword">New password</label>
+      <input type="password" id="newPassword" placeholder="••••••••">
+      <div class="field-error" id="newPasswordError">Password must be at least 8 characters.</div>
+    </div>
+    <button class="btn btn-coral btn-full" onclick="handleUpdatePassword()">Update password</button>
+  </div>
+</div>
 
 <!-- ---------- QUESTION BANK OVERLAY ---------- -->
 <div class="qbank-overlay" id="qbankOverlay">
@@ -1799,11 +1846,18 @@
   }
 
   if(supabaseClient){
+    const cameFromEmailLink = /type=(signup|recovery|email_change)/.test(window.location.hash) || /type=(signup|recovery|email_change)/.test(window.location.search);
     supabaseClient.auth.getSession().then(({ data: { session } }) => {
       if(session?.user) loadProfileFromSupabase(session.user);
     });
     supabaseClient.auth.onAuthStateChange((event, session) => {
-      if(event === 'SIGNED_IN' && session?.user) loadProfileFromSupabase(session.user);
+      if(event === 'SIGNED_IN' && session?.user){
+        loadProfileFromSupabase(session.user);
+        if(cameFromEmailLink) showToast('Email confirmed — you\'re logged in!');
+      }
+      if(event === 'PASSWORD_RECOVERY'){
+        document.getElementById('resetPasswordOverlay').classList.add('show');
+      }
       if(event === 'SIGNED_OUT') currentUser = null;
     });
   }
@@ -1857,15 +1911,48 @@
     if(!supabaseClient){ showToast('Signup isn\'t connected yet — add your Supabase keys first.'); return; }
 
     const { data, error } = await supabaseClient.auth.signUp({
-      email, password, options: { data: { name } }
+      email, password, options: { data: { name }, emailRedirectTo: window.location.origin }
     });
     if(error){ showToast(error.message || 'Signup failed.'); return; }
     if(!data.session){
-      showToast('Account created — check your email to confirm, then log in.');
+      document.getElementById('confirmOverlay').classList.add('show');
       switchTab('login');
       return;
     }
     showToast(`Account created — welcome, ${name}!`);
+  }
+
+  async function handleForgotPassword(){
+    if(!supabaseClient){ showToast('Login isn\'t connected yet — add your Supabase keys first.'); return; }
+    const email = (document.getElementById('loginEmail').value || '').trim();
+    if(!isValidEmail(email)){ showToast('Enter your email above first, then click "Forgot password?"'); return; }
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin
+    });
+    if(error){ showToast(error.message || 'Could not send reset email.'); return; }
+    showToast('Password reset link sent — check your email.');
+  }
+
+  async function handleResendConfirmation(){
+    if(!supabaseClient){ showToast('Login isn\'t connected yet — add your Supabase keys first.'); return; }
+    const email = (document.getElementById('loginEmail').value || '').trim();
+    if(!isValidEmail(email)){ showToast('Enter your email above first, then click "Resend confirmation email."'); return; }
+    const { error } = await supabaseClient.auth.resend({
+      type: 'signup', email, options: { emailRedirectTo: window.location.origin }
+    });
+    if(error){ showToast(error.message || 'Could not resend confirmation email.'); return; }
+    showToast('Confirmation email resent — check your inbox.');
+  }
+
+  async function handleUpdatePassword(){
+    const newPassword = document.getElementById('newPassword').value;
+    if(!newPassword || newPassword.length < 8){ showError('newPasswordError'); return; }
+    if(!supabaseClient){ showToast('Not connected — add your Supabase keys first.'); return; }
+    const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+    if(error){ showToast(error.message || 'Could not update password.'); return; }
+    document.getElementById('resetPasswordOverlay').classList.remove('show');
+    document.getElementById('newPassword').value = '';
+    showToast('Password updated — you\'re all set!');
   }
 
   async function saveProfile(){
