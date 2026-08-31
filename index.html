@@ -4297,6 +4297,29 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+<!-- 1. Load the Supabase JavaScript Library -->
+<script src="https://jsdelivr.net"></script>
 
+<!-- 2. Connect your Netlify keys and turn on the Safety Guard -->
+<script>
+  // Netlify automatically replaces these with your real keys live!
+    const supabaseUrl = window.env?.SUPABASE_URL || "https://edbhfzsxueguzvrvgoib.supabase.co";
+      const supabaseAnonKey = window.env?.SUPABASE_ANON_KEY || "sb_publishable_tTJODPbpk-nXijvtLTHh-g_Ya2GYhl7";
+        
+          // Initialize the Supabase connection
+            const supabase = supabase.createClient(supabaseUrl, supabaseAnonKey);
+            
+              // ⚡ MASTER SAFETY GUARD: Instantly kicks out unverified users
+                supabase.auth.onAuthStateChange(async (event, session) => {
+                    if (session && session.user) {
+                          if (!session.user.email_confirmed_at) {
+                                  await supabase.auth.signOut();
+                                          alert("✉️ Verification Required: Please check your inbox and click the activation link to access Medicipate.");
+                                                  window.location.reload(); // Restarts page to clear the login state cleanly
+                                                        }
+                                                            }
+                                                              });
+                                                              </script>
+                                                              -->
 </body>
 </html>
