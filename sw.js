@@ -1,9 +1,9 @@
-const CACHE = 'medicipate-shell-v2'; // Incremented version to clear old cache bugs
+const CACHE = 'medicipate-production-v3';
+
 const SHELL = [
   '/',
-  '/index.html',
   '/manifest.webmanifest',
-  '/Assets/medicipate-logo.png',
+  '/assets/medicipate-logo.png',
   '/icons/icon-192.png',
   '/icons/icon-512.png'
 ];
@@ -19,54 +19,86 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(keys =>
+        Promise.all(
+          keys
+            .filter(key => key !== CACHE)
+            .map(key => caches.delete(key))
+        )
+      )
       .then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', event => {
-  // 1. Only intercept GET requests
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
 
-  // 2. CRUCIAL: Do NOT intercept or cache external Supabase database requests
-  if (url.origin.includes('supabase.co')) return;
-
-  // 3. Do NOT intercept local authentication redirects, tokens, or Netlify API handlers
-  if (
-    url.pathname.includes('/auth/') || 
-    url.pathname.includes('token') ||
-    url.pathname.startsWith('/.netlify/functions/')
-  ) {
-    return;
-  }
-
-  // 4. Do NOT cache requests containing authentication hash metrics or query codes from email links
-  if (url.search.includes('code=') || url.hash.includes('access_token=')) {
-    return;
-  }
-
-  // 5. Only handle requests bound for your main website origin
+  // Only handle requests belonging to MEDICIPATE.
   if (url.origin !== self.location.origin) return;
 
-  // 6. Network-First, Asset Fallback strategy for clean app performance
+  // Never cache Netlify backend/API requests.
+  if (url.pathname.startsWith('/.netlify/functions/')) return;
+
+  /*
+   * APPLICATION HTML
+   *
+   * Always prefer the newest version from the network.
+   * This prevents an old index.html containing old
+   * Library/Premium/payment code from remaining stuck
+   * in the browser cache.
+   */
+  if (
+    event.request.mode === 'navigate' ||
+    url.pathname === '/' ||
+    url.pathname === '/index.html'
+  ) {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' })
+        .then(response => response)
+        .catch(() => caches.match('/index.html'))
+    );
+
+    return;
+  }
+
+  /*
+   * SERVICE WORKER
+   *
+   * Always fetch the newest sw.js from the server.
+   */
+  if (url.pathname === '/sw.js') {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' })
+    );
+
+    return;
+  }
+
+  /*
+   * STATIC ASSETS
+   *
+   * Network first, cached copy only if offline.
+   */
   event.respondWith(
     fetch(event.request)
       .then(response => {
-        // Safe check: Only cache successful standard web page responses
-        if (response && response.status === 200 && response.type === 'basic') {
+        if (response && response.ok) {
           const copy = response.clone();
+
           caches.open(CACHE)
             .then(cache => cache.put(event.request, copy))
             .catch(() => {});
         }
+
         return response;
       })
-      .catch(() => {
-        // Offline Fallback handling
-        return caches.match(event.request)
-          .then(cached => cached || caches.match('/index.html'));
-      })
+      .catch(() =>
+        caches.match(event.request)
+          .then(cached =>
+            cached || caches.match('/index.html')
+          )
+      )
   );
 });
