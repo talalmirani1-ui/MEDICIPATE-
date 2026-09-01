@@ -2920,17 +2920,42 @@
     };
   }
   function renderLibrary(){
-    const systems = Object.keys(IMPORTED_LIBRARY_DATA).sort();
+    const systems = Object.keys(IMPORTED_LIBRARY_DATA || {}).sort();
+    const premium = libraryHasPremiumAccess();
     return `
-      <div class="dash-head"><h2>Library</h2><p>High-yield reference content organized by system and complete topic. ${libraryHasPremiumAccess() ? '<strong style="color:var(--teal);">Premium is active — all Library topics are unlocked.</strong>' : 'Free users can open the first complete topic in each system.'}</p></div>
-      <div class="dash-grid">
+      <div class="dash-head">
+        <h2>Library</h2>
+        <p>Browse by medical system → sub-topic → complete reference content.
+          ${premium
+            ? '<strong style="color:var(--teal);">Premium is active — all Library topics are unlocked.</strong>'
+            : 'Free users can open the first complete topic in each system.'}
+        </p>
+      </div>
+
+      <div class="dash-grid" id="librarySystemGrid">
         ${systems.map(sys => {
           const topics = Object.keys(IMPORTED_LIBRARY_DATA[sys] || {}).sort();
-          const freeCount = topics.length > 0 ? 1 : 0;
-          const premiumCount = topics.length - freeCount;
-          const premium = libraryHasPremiumAccess();
-          const inner = `<div class="dc-icon" style="background:rgba(18,163,154,0.12); color:var(--teal);">📚</div><h4>${escapeHtml(sys)}</h4><p class="lib-meta">${topics.length} topics · ${freeCount} FREE · ${premiumCount} PREMIUM</p><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;"><span class="status-badge" style="background:#e8faf7;color:#087d77;">FREE topics</span><span class="status-badge" style="background:${premium?'#e8faf7':'#fff4e5'};color:${premium?'#087d77':'#9a5b00'};">${premium?'✓ ALL TOPICS UNLOCKED':'🔒 PREMIUM topics'}</span></div>`;
-          return `<div class="dash-card clickable" onclick="openImportedLibrarySystem(${JSON.stringify(sys)})">${inner}</div>`;
+          const freeCount = topics.length ? 1 : 0;
+          const premiumCount = Math.max(0, topics.length - freeCount);
+          const jsSys = JSON.stringify(sys).replace(/'/g, '&#39;');
+          return `
+            <div class="dash-card" style="cursor:pointer;">
+              <div class="dc-icon" style="background:rgba(18,163,154,.12);color:var(--teal);">📚</div>
+              <h4>${escapeHtml(sys)}</h4>
+              <p class="lib-meta">${topics.length} sub-topics · ${freeCount} FREE · ${premiumCount} PREMIUM</p>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;">
+                <span class="status-badge" style="background:#e8faf7;color:#087d77;">${topics.length} SUB-TOPICS</span>
+                <span class="status-badge" style="background:${premium?'#e8faf7':'#fff4e5'};color:${premium?'#087d77':'#9a5b00'};">
+                  ${premium?'✓ ALL UNLOCKED':'🔒 PREMIUM'}
+                </span>
+              </div>
+              <button type="button"
+                class="btn btn-ghost"
+                style="width:100%;margin-top:14px;border-color:rgba(18,163,154,.35);color:var(--teal);font-weight:800;"
+                onclick='openImportedLibrarySystem("${jsSys.replace(/"/g,'\\"')}")'>
+                Open ${escapeHtml(sys)} →
+              </button>
+            </div>`;
         }).join('')}
       </div>
       <div id="importedLibraryDetail" style="margin-top:18px;"></div>
@@ -2940,26 +2965,68 @@
   function escapeHtml(v){
     return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
-  async function openImportedLibrarySystem(system){
-    await refreshPlanStatus();
-    const root=document.getElementById('importedLibraryDetail');
-    if(!root) return;
-    const topics=Object.keys(IMPORTED_LIBRARY_DATA[system] || {}).sort();
-    root.innerHTML=`<div class="list-card"><div class="dash-head" style="padding:16px 16px 6px;"><h2>${escapeHtml(system)}</h2><p>Each system contains complete reference topics. Free users can open the first complete topic; Premium users can open every topic and every reference section.</p></div>${topics.map(t=>{
-      const access=libraryTopicAccess(system,t);
-      const locked=!access.unlocked;
-      const badge=access.free?'<span class="status-badge" style="background:#e8faf7;color:#087d77;">FREE</span>':'<span class="status-badge" style="background:#fff4e5;color:#9a5b00;">🔒 PREMIUM</span>';
-      return `<div class="list-row" ${locked?'':'onclick="openImportedLibraryTopic('+JSON.stringify(system)+','+JSON.stringify(t)+')"'} style="${locked?'opacity:.72;':''}cursor:${locked?'default':'pointer'}"><div class="system-pill">${locked?'🔒':'📖'}</div><div style="flex:1"><div class="lr-title">${escapeHtml(t)} ${badge}</div><div class="lr-sub">${IMPORTED_LIBRARY_HEADINGS.length} complete reference sections · ${access.free?'Free topic':'Premium topic'}</div></div>${locked?'<button class="btn btn-ghost" type="button" onclick="openUpgradeModal();event.stopPropagation();">Unlock</button>':''}</div>`;
-    }).join('')}</div>`;
+  function openImportedLibrarySystem(system){
+    const root = document.getElementById('importedLibraryDetail');
+    const library = (IMPORTED_LIBRARY_DATA || {})[system];
+
+    if(!root || !library){
+      console.error('MEDICIPATE Library: system not found:', system);
+      if(typeof showToast === 'function') showToast('Library system could not be loaded. Please refresh once.');
+      return;
+    }
+
+    const topics = Object.keys(library).sort();
+    const premium = libraryHasPremiumAccess();
+    const jsSystem = JSON.stringify(system).replace(/'/g, '&#39;');
+
+    root.innerHTML = `
+      <div class="list-card">
+        <div class="dash-head" style="padding:16px 16px 8px;">
+          <button type="button" class="btn btn-ghost"
+            onclick='document.getElementById("importedLibraryDetail").innerHTML=""'>
+            ← Back to systems
+          </button>
+          <h2 style="margin-top:14px;">${escapeHtml(system)}</h2>
+          <p>Select a sub-topic below to read its complete medical reference.
+             ${premium
+               ? '<strong style="color:var(--teal);">Premium: every sub-topic is open.</strong>'
+               : 'Free: first sub-topic is open; Premium unlocks all sub-topics.'}
+          </p>
+        </div>
+
+        <div style="display:grid;gap:8px;padding:0 12px 16px;">
+          ${topics.map((topic, index) => {
+            const access = libraryTopicAccess(system, topic);
+            const locked = !access.unlocked;
+            const jsTopic = JSON.stringify(topic).replace(/'/g, '&#39;');
+            return `
+              <div class="list-row" style="display:flex;align-items:center;gap:12px;${locked?'opacity:.72;':''}">
+                <div class="system-pill">${locked?'🔒':'📖'}</div>
+                <div style="flex:1;min-width:0;">
+                  <div class="lr-title">${index+1}. ${escapeHtml(topic)}</div>
+                  <div class="lr-sub">${Object.keys(library[topic] || {}).length} content sections</div>
+                </div>
+                ${locked
+                  ? `<button type="button" class="btn btn-ghost" onclick="openUpgradeModal()">Unlock</button>`
+                  : `<button type="button" class="btn btn-ghost"
+                       style="color:var(--teal);border-color:rgba(18,163,154,.35);"
+                       onclick='openImportedLibraryTopic(${jsSystem},${jsTopic})'>
+                       Open →
+                     </button>`}
+              </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+
     root.scrollIntoView({behavior:'smooth',block:'start'});
   }
-  async function openImportedLibraryTopic(system,topic){
-    await refreshPlanStatus();
+
+  function openImportedLibraryTopic(system,topic){
     const access=libraryTopicAccess(system,topic);
     if(!access.unlocked){ openUpgradeModal(); return; }
     const root=document.getElementById('importedLibraryDetail');
     const data=(IMPORTED_LIBRARY_DATA[system]||{})[topic]||{};
-    root.innerHTML=`<div class="list-card"><div class="dash-head" style="padding:16px 16px 6px;"><button class="btn btn-ghost" onclick="openImportedLibrarySystem(${JSON.stringify(system)})">← Back</button><div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><h2 style="margin:0;">${escapeHtml(topic)}</h2>${access.free?'<span class="status-badge" style="background:#e8faf7;color:#087d77;">FREE</span>':'<span class="status-badge" style="background:#fff4e5;color:#9a5b00;">PREMIUM</span>'}</div><p>Complete topic access — all reference sections below are available at this tier.</p></div>${IMPORTED_LIBRARY_HEADINGS.map(h=>`<div class="list-row" style="display:block;padding:14px 16px;"><div class="lr-title" style="margin-bottom:6px;">${escapeHtml(h)}</div><div class="lr-sub" style="white-space:normal;line-height:1.6;">${escapeHtml(data[h]||'No source content supplied.')}</div></div>`).join('')}</div>`;
+    root.innerHTML=`<div class="list-card"><div class="dash-head" style="padding:16px 16px 6px;"><button type="button" class="btn btn-ghost" onclick='openImportedLibrarySystem(${JSON.stringify(system).replace(/'/g, '&#39;')})'">← Back to topics</button><div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><h2 style="margin:0;">${escapeHtml(topic)}</h2>${access.free?'<span class="status-badge" style="background:#e8faf7;color:#087d77;">FREE</span>':'<span class="status-badge" style="background:#fff4e5;color:#9a5b00;">PREMIUM</span>'}</div><p>Complete topic access — all reference sections below are available at this tier.</p></div>${IMPORTED_LIBRARY_HEADINGS.map(h=>`<div class="list-row" style="display:block;padding:14px 16px;"><div class="lr-title" style="margin-bottom:6px;">${escapeHtml(h)}</div><div class="lr-sub" style="white-space:normal;line-height:1.6;">${escapeHtml(data[h]||'No source content supplied.')}</div></div>`).join('')}</div>`;
     root.scrollIntoView({behavior:'smooth',block:'start'});
   }
 
