@@ -1029,6 +1029,66 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+
+<style id="manual-payment-mobile-fix">
+  .mp-payment-line,
+  .mp-payment-copy{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    font-size:.84rem;
+    line-height:1.35;
+  }
+  .mp-payment-line > span,
+  .mp-payment-copy > span{color:var(--slate);}
+  .mp-payment-line > strong{
+    color:var(--navy-deep);
+    text-align:right;
+    max-width:62%;
+    overflow-wrap:anywhere;
+  }
+  .mp-payment-copy > button{
+    border:1px solid #d8e0ea;
+    background:#f8fafc;
+    color:var(--navy-deep);
+    border-radius:8px;
+    padding:7px 9px;
+    font:inherit;
+    font-weight:700;
+    cursor:pointer;
+    text-align:right;
+    max-width:72%;
+    overflow-wrap:anywhere;
+  }
+  .mp-payment-copy > button b{
+    display:inline-block;
+    margin-left:6px;
+    color:#167c72;
+  }
+  @media(max-width:520px){
+    #manualPaymentOverlay .modal{
+      width:calc(100vw - 24px);
+      max-height:88vh;
+      overflow-y:auto;
+      padding:24px 18px 20px;
+    }
+    #manualPaymentOverlay .modal h2{
+      font-size:1.45rem;
+      line-height:1.18;
+      padding-right:28px;
+    }
+    .mp-payment-line,
+    .mp-payment-copy{
+      align-items:flex-start;
+    }
+    .mp-payment-line > strong,
+    .mp-payment-copy > button{
+      max-width:68%;
+    }
+  }
+</style>
+
 </head>
 <body>
 
@@ -1811,7 +1871,8 @@
     </ul>
     <button class="btn btn-coral btn-full" onclick="showSection('upgrade'); closeUpgradeModal();">View Pro plans</button>
     <button class="btn btn-ghost btn-full" style="border-color:rgba(11,30,61,0.2); color:var(--navy-deep); margin-top:8px;" onclick="closeUpgradeModal()">Continue with Free</button>
-  </div>
+  
+</div>
 </div>
 
 <!-- ---------- MANUAL PAYMENT MODAL (Rapid Gateway keys pending) ---------- -->
@@ -1862,7 +1923,14 @@
 
     const now = new Date();
     const expiresAt = profile.plan_expires_at ? new Date(profile.plan_expires_at) : null;
-    const activePro = !!profile.is_pro && (!expiresAt || expiresAt > now);
+      const isProFlag =
+        profile.is_pro === true ||
+        profile.is_pro === 1 ||
+        String(profile.is_pro).toLowerCase() === 'true';
+      const validExpiry =
+        !expiresAt ||
+        (!Number.isNaN(expiresAt.getTime()) && expiresAt > now);
+      const activePro = isProFlag && validExpiry;
 
     currentUser = {
       id: supaUser.id,
@@ -1887,6 +1955,46 @@
     document.getElementById('navSignupBtn').style.display = 'none';
     closeModal();
     enterDashboard();
+  }
+
+  // Lightweight re-check of the logged-in user's plan status, without any of
+  // the one-time "just logged in" UI side effects that loadProfileFromSupabase
+  // triggers (closing modals, entering the dashboard, etc). This lets a plan
+  // change made on the backend (e.g. an admin flipping is_pro in Supabase)
+  // take effect the next time the user opens a section, instead of requiring
+  // a full logout/login.
+  async function refreshPlanStatus(){
+    if(!supabaseClient || !currentUser?.id) return !!currentUser?.isPro;
+    try{
+      const { data: profile, error } = await supabaseClient
+        .from('profiles')
+        .select('is_pro, plan_expires_at, plan_id, plan_label, plan_amount, plan_paid_at')
+        .eq('id', currentUser.id)
+        .single();
+      if(error || !profile) return !!currentUser?.isPro;
+      const now = new Date();
+      const expiresAt = profile.plan_expires_at ? new Date(profile.plan_expires_at) : null;
+      const isProFlag =
+        profile.is_pro === true ||
+        profile.is_pro === 1 ||
+        String(profile.is_pro).toLowerCase() === 'true';
+      const validExpiry =
+        !expiresAt ||
+        (!Number.isNaN(expiresAt.getTime()) && expiresAt > now);
+      const activePro = isProFlag && validExpiry;
+      currentUser.isPro = activePro;
+      currentUser.planId = profile.plan_id;
+      currentUser.planLabel = profile.plan_label;
+      currentUser.planAmount = profile.plan_amount;
+      currentUser.planPaidAt = profile.plan_paid_at;
+      currentUser.planExpiresAt = profile.plan_expires_at;
+      userPlan = activePro ? 'pro' : 'free';
+      updatePlanBadge();
+      return activePro;
+    }catch(e){
+      console.error('plan refresh failed', e);
+      return !!currentUser?.isPro;
+    }
   }
 
   if(supabaseClient){
@@ -2133,11 +2241,11 @@
     diamond:'<path d="M3 7l3-5h6l3 5-6 9-6-9z" stroke="currentColor" stroke-width="1.3" fill="none" stroke-linejoin="round"/>'
   };
 
-  let userPlan = 'free'; // 'free' | 'pro' — toggled by the (UI-only, no live payments) upgrade flow
+  let userPlan = 'free'; // mirrors currentUser.isPro; Supabase profile is authoritative
   let qbankUsedToday = 0;
   let activeSection = 'overview';
 
-  function isPro(){ return userPlan === 'pro'; }
+  function isPro(){ return currentUser?.isPro === true; }
 
   function enterDashboard(){
     document.getElementById('publicSite').style.display = 'none';
@@ -2209,11 +2317,17 @@
     timer:'Study Timer', upgrade:'MEDICIPATE Pro', profile:'Profile'
   };
 
-  function showSection(id){
+  async function showSection(id){
     activeSection = id;
     document.getElementById('dashTopbarTitle').textContent = SECTION_TITLES[id] || 'Dashboard';
     setActiveNav(id);
     closeDrawer();
+
+    // Re-check plan status from Supabase before rendering, so a premium
+    // change made on the backend takes effect immediately instead of
+    // requiring a full logout/login.
+    await refreshPlanStatus();
+
     const content = document.getElementById('dashContent');
     content.innerHTML = renderSection(id);
     if(id === 'nomes') bindNomesSetup();
@@ -2787,23 +2901,35 @@
     { name:'Pharmacology', icon:'💊' }, { name:'Pathology', icon:'🔬' },
     { name:'Anatomy', icon:'🫲' }, { name:'Physiology', icon:'📈' }
   ];
+  function libraryHasPremiumAccess(){
+    return currentUser?.isPro === true || userPlan === 'pro';
+  }
+
   function libraryTopicAccess(system, topic){
     const topics = Object.keys(IMPORTED_LIBRARY_DATA[system] || {}).sort();
     const idx = topics.indexOf(topic);
-    if(idx < 0) return {free:false,index:-1,total:topics.length};
+    if(idx < 0) return {free:false,unlocked:false,index:-1,total:topics.length};
     const freeCount = topics.length > 0 ? 1 : 0;
-    return {free:idx < freeCount,index:idx,total:topics.length,freeCount};
+    const free = idx < freeCount;
+    return {
+      free,
+      unlocked: free || libraryHasPremiumAccess(),
+      index:idx,
+      total:topics.length,
+      freeCount
+    };
   }
   function renderLibrary(){
     const systems = Object.keys(IMPORTED_LIBRARY_DATA).sort();
     return `
-      <div class="dash-head"><h2>Library</h2><p>High-yield reference content organized by system and complete topic. Every medical system contains meaningful Free and Premium topics; Free topics are fully readable rather than being cut off mid-article.</p></div>
+      <div class="dash-head"><h2>Library</h2><p>High-yield reference content organized by system and complete topic. ${libraryHasPremiumAccess() ? '<strong style="color:var(--teal);">Premium is active — all Library topics are unlocked.</strong>' : 'Free users can open the first complete topic in each system.'}</p></div>
       <div class="dash-grid">
         ${systems.map(sys => {
           const topics = Object.keys(IMPORTED_LIBRARY_DATA[sys] || {}).sort();
           const freeCount = topics.length > 0 ? 1 : 0;
           const premiumCount = topics.length - freeCount;
-          const inner = `<div class="dc-icon" style="background:rgba(18,163,154,0.12); color:var(--teal);">📚</div><h4>${escapeHtml(sys)}</h4><p class="lib-meta">${topics.length} topics · ${freeCount} FREE · ${premiumCount} PREMIUM</p><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;"><span class="status-badge" style="background:#e8faf7;color:#087d77;">FREE topics</span><span class="status-badge" style="background:#fff4e5;color:#9a5b00;">🔒 PREMIUM topics</span></div>`;
+          const premium = libraryHasPremiumAccess();
+          const inner = `<div class="dc-icon" style="background:rgba(18,163,154,0.12); color:var(--teal);">📚</div><h4>${escapeHtml(sys)}</h4><p class="lib-meta">${topics.length} topics · ${freeCount} FREE · ${premiumCount} PREMIUM</p><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;"><span class="status-badge" style="background:#e8faf7;color:#087d77;">FREE topics</span><span class="status-badge" style="background:${premium?'#e8faf7':'#fff4e5'};color:${premium?'#087d77':'#9a5b00'};">${premium?'✓ ALL TOPICS UNLOCKED':'🔒 PREMIUM topics'}</span></div>`;
           return `<div class="dash-card clickable" onclick="openImportedLibrarySystem(${JSON.stringify(sys)})">${inner}</div>`;
         }).join('')}
       </div>
@@ -2814,21 +2940,23 @@
   function escapeHtml(v){
     return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
-  function openImportedLibrarySystem(system){
+  async function openImportedLibrarySystem(system){
+    await refreshPlanStatus();
     const root=document.getElementById('importedLibraryDetail');
     if(!root) return;
     const topics=Object.keys(IMPORTED_LIBRARY_DATA[system] || {}).sort();
-    root.innerHTML=`<div class="list-card"><div class="dash-head" style="padding:16px 16px 6px;"><h2>${escapeHtml(system)}</h2><p>Each system is divided by complete topics: the first meaningful half is FREE and the remaining topics are PREMIUM. A Free topic is never truncated.</p></div>${topics.map(t=>{
+    root.innerHTML=`<div class="list-card"><div class="dash-head" style="padding:16px 16px 6px;"><h2>${escapeHtml(system)}</h2><p>Each system contains complete reference topics. Free users can open the first complete topic; Premium users can open every topic and every reference section.</p></div>${topics.map(t=>{
       const access=libraryTopicAccess(system,t);
-      const locked=!access.free && !isPro();
+      const locked=!access.unlocked;
       const badge=access.free?'<span class="status-badge" style="background:#e8faf7;color:#087d77;">FREE</span>':'<span class="status-badge" style="background:#fff4e5;color:#9a5b00;">🔒 PREMIUM</span>';
       return `<div class="list-row" ${locked?'':'onclick="openImportedLibraryTopic('+JSON.stringify(system)+','+JSON.stringify(t)+')"'} style="${locked?'opacity:.72;':''}cursor:${locked?'default':'pointer'}"><div class="system-pill">${locked?'🔒':'📖'}</div><div style="flex:1"><div class="lr-title">${escapeHtml(t)} ${badge}</div><div class="lr-sub">${IMPORTED_LIBRARY_HEADINGS.length} complete reference sections · ${access.free?'Free topic':'Premium topic'}</div></div>${locked?'<button class="btn btn-ghost" type="button" onclick="openUpgradeModal();event.stopPropagation();">Unlock</button>':''}</div>`;
     }).join('')}</div>`;
     root.scrollIntoView({behavior:'smooth',block:'start'});
   }
-  function openImportedLibraryTopic(system,topic){
+  async function openImportedLibraryTopic(system,topic){
+    await refreshPlanStatus();
     const access=libraryTopicAccess(system,topic);
-    if(!access.free && !isPro()){ openUpgradeModal(); return; }
+    if(!access.unlocked){ openUpgradeModal(); return; }
     const root=document.getElementById('importedLibraryDetail');
     const data=(IMPORTED_LIBRARY_DATA[system]||{})[topic]||{};
     root.innerHTML=`<div class="list-card"><div class="dash-head" style="padding:16px 16px 6px;"><button class="btn btn-ghost" onclick="openImportedLibrarySystem(${JSON.stringify(system)})">← Back</button><div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><h2 style="margin:0;">${escapeHtml(topic)}</h2>${access.free?'<span class="status-badge" style="background:#e8faf7;color:#087d77;">FREE</span>':'<span class="status-badge" style="background:#fff4e5;color:#9a5b00;">PREMIUM</span>'}</div><p>Complete topic access — all reference sections below are available at this tier.</p></div>${IMPORTED_LIBRARY_HEADINGS.map(h=>`<div class="list-row" style="display:block;padding:14px 16px;"><div class="lr-title" style="margin-bottom:6px;">${escapeHtml(h)}</div><div class="lr-sub" style="white-space:normal;line-height:1.6;">${escapeHtml(data[h]||'No source content supplied.')}</div></div>`).join('')}</div>`;
@@ -3583,14 +3711,38 @@
 
   /* ---- Manual payment fallback (while Rapid Gateway keys are pending approval) ---- */
   const MANUAL_PAYMENT_DETAILS = {
-    bankName: 'Meezan Bank',
-    accountTitle: 'MEDICIPATE',
-    accountNumber: '0000-0000-0000',
-    iban: 'PK00 MEZN 0000 0000 0000 0000',
-    jazzcash: '0304 6164139',
-    easypaisa: '0316 6323085',
+    bankName: 'HBL',
+    accountTitle: 'M Saqlain Iaa',
+    accountNumber: '50867991927303',
+    iban: 'PK05HABB0050867991927303',
+    branchName: 'IBB BUS STAND LAYYAH',
+    jazzcashName: 'Muhammad Saqlain Farooq',
+    jazzcash: '03046164139',
+    easypaisaName: 'Muhammad Saqlain Farooq',
+    easypaisa: '03046164139',
+    sadapayName: 'Muhammad Saqlain Farooq',
+    sadapay: '03046164139',
     whatsapp: '923046164139'
   };
+  async function copyPaymentValue(value, button){
+    try{
+      await navigator.clipboard.writeText(value);
+    }catch(e){
+      const textarea = document.createElement('textarea');
+      textarea.value = value;
+      textarea.setAttribute('readonly','');
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      textarea.remove();
+    }
+    const original = button.innerHTML;
+    button.innerHTML = 'Copied ✓';
+    setTimeout(() => { button.innerHTML = original; }, 1400);
+  }
+
   function generateManualOrderRef(){
     return 'MP-' + Date.now().toString(36).toUpperCase();
   }
@@ -3617,24 +3769,71 @@
     const body = document.getElementById('manualPaymentBody');
     if(!overlay || !body) return;
     body.innerHTML = `
-      <p style="margin:0 0 14px; color:var(--slate); font-size:.92rem;">
-        Card checkout is finishing gateway approval. Pay Rs. <strong>${plan.amount}</strong> for the
-        <strong>${plan.label}</strong> plan using any option below, then confirm on WhatsApp — most accounts
-        are activated within a few hours.
-      </p>
-      <div class="mp-manual-pay-grid">
-        <div class="mp-manual-pay-row"><span>Bank</span><strong>${MANUAL_PAYMENT_DETAILS.bankName}</strong></div>
-        <div class="mp-manual-pay-row"><span>Account Title</span><strong>${MANUAL_PAYMENT_DETAILS.accountTitle}</strong></div>
-        <div class="mp-manual-pay-row"><span>Account Number</span><strong>${MANUAL_PAYMENT_DETAILS.accountNumber}</strong></div>
-        <div class="mp-manual-pay-row"><span>IBAN</span><strong>${MANUAL_PAYMENT_DETAILS.iban}</strong></div>
-        <div class="mp-manual-pay-row"><span>JazzCash</span><strong>${MANUAL_PAYMENT_DETAILS.jazzcash}</strong></div>
-        <div class="mp-manual-pay-row"><span>Easypaisa</span><strong>${MANUAL_PAYMENT_DETAILS.easypaisa}</strong></div>
+      <div style="margin:0 0 16px;padding:14px 15px;border-radius:12px;background:#f5f8fc;border:1px solid #e4eaf2;">
+        <div style="font-size:.86rem;color:var(--slate);margin-bottom:4px;">Amount to pay</div>
+        <div style="font-size:1.45rem;font-weight:800;color:var(--navy-deep);">Rs. ${plan.amount}</div>
+        <div style="font-size:.88rem;color:var(--slate);margin-top:3px;">${plan.label} Premium plan</div>
       </div>
-      <div class="mp-manual-pay-ref">Order reference: <strong>${orderRef}</strong> — include this when you message us.</div>
-      <a class="btn btn-coral btn-lg" style="width:100%; justify-content:center; margin-top:16px;" href="${waLink}" target="_blank" rel="noopener noreferrer">
-        Send payment screenshot on WhatsApp
+
+      <p style="margin:0 0 14px;color:var(--slate);font-size:.92rem;line-height:1.5;">
+        Pay the exact amount using <strong>any one</strong> of the options below.
+        After payment, send your receipt on WhatsApp with your
+        <strong>MEDICIPATE account email</strong> and order reference.
+      </p>
+
+      <div style="display:grid;gap:10px;">
+        <div style="border:1px solid #dfe5ed;border-radius:13px;overflow:hidden;background:#fff;">
+          <div style="padding:12px 14px;background:#f7f9fc;font-weight:800;color:var(--navy-deep);">1. HBL Bank</div>
+          <div style="padding:12px 14px;display:grid;gap:9px;">
+            <div class="mp-payment-line"><span>Bank</span><strong>HBL</strong></div>
+            <div class="mp-payment-line"><span>Account Name</span><strong>M Saqlain Iaa</strong></div>
+            <div class="mp-payment-copy"><span>Account Number</span><button type="button" onclick="copyPaymentValue('${MANUAL_PAYMENT_DETAILS.accountNumber}',this)">${MANUAL_PAYMENT_DETAILS.accountNumber} <b>Copy</b></button></div>
+            <div class="mp-payment-copy"><span>IBAN</span><button type="button" onclick="copyPaymentValue('${MANUAL_PAYMENT_DETAILS.iban}',this)">${MANUAL_PAYMENT_DETAILS.iban} <b>Copy</b></button></div>
+            <div class="mp-payment-line"><span>Branch</span><strong>IBB BUS STAND LAYYAH</strong></div>
+          </div>
+        </div>
+
+        <div style="border:1px solid #dfe5ed;border-radius:13px;overflow:hidden;background:#fff;">
+          <div style="padding:12px 14px;background:#f7f9fc;font-weight:800;color:var(--navy-deep);">2. JazzCash</div>
+          <div style="padding:12px 14px;display:grid;gap:9px;">
+            <div class="mp-payment-line"><span>Account Name</span><strong>Muhammad Saqlain Farooq</strong></div>
+            <div class="mp-payment-copy"><span>Account Number</span><button type="button" onclick="copyPaymentValue('${MANUAL_PAYMENT_DETAILS.jazzcash}',this)">${MANUAL_PAYMENT_DETAILS.jazzcash} <b>Copy</b></button></div>
+          </div>
+        </div>
+
+        <div style="border:1px solid #dfe5ed;border-radius:13px;overflow:hidden;background:#fff;">
+          <div style="padding:12px 14px;background:#f7f9fc;font-weight:800;color:var(--navy-deep);">3. Easypaisa</div>
+          <div style="padding:12px 14px;display:grid;gap:9px;">
+            <div class="mp-payment-line"><span>Account Name</span><strong>Muhammad Saqlain Farooq</strong></div>
+            <div class="mp-payment-copy"><span>Account Number</span><button type="button" onclick="copyPaymentValue('${MANUAL_PAYMENT_DETAILS.easypaisa}',this)">${MANUAL_PAYMENT_DETAILS.easypaisa} <b>Copy</b></button></div>
+          </div>
+        </div>
+
+        <div style="border:1px solid #dfe5ed;border-radius:13px;overflow:hidden;background:#fff;">
+          <div style="padding:12px 14px;background:#f7f9fc;font-weight:800;color:var(--navy-deep);">4. SadaPay</div>
+          <div style="padding:12px 14px;display:grid;gap:9px;">
+            <div class="mp-payment-line"><span>Account Name</span><strong>Muhammad Saqlain Farooq</strong></div>
+            <div class="mp-payment-copy"><span>Account Number</span><button type="button" onclick="copyPaymentValue('${MANUAL_PAYMENT_DETAILS.sadapay}',this)">${MANUAL_PAYMENT_DETAILS.sadapay} <b>Copy</b></button></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:13px;padding:12px 14px;border-radius:12px;background:#eefaf7;border:1px solid #cfeee6;font-size:.84rem;line-height:1.5;color:#315d56;">
+        <strong>Order reference:</strong> ${orderRef}<br>
+        Include this reference when sending your receipt.
+      </div>
+
+      <a href="${waLink}" target="_blank" rel="noopener noreferrer"
+         style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;box-sizing:border-box;margin-top:13px;padding:13px 14px;border-radius:11px;background:#25D366;color:#fff;text-decoration:none;font-weight:800;font-size:.94rem;">
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path fill="currentColor" d="M20.5 3.5A11.83 11.83 0 0 0 12.05 0C5.52 0 .2 5.32.2 11.85c0 2.09.55 4.13 1.6 5.94L.1 23.9l6.25-1.64a11.83 11.83 0 0 0 5.7 1.45h.01c6.52 0 11.84-5.32 11.84-11.85 0-3.16-1.23-6.13-3.4-8.36ZM12.06 21.7h-.01a9.84 9.84 0 0 1-5.02-1.37l-.36-.21-3.71.97.99-3.62-.23-.37a9.84 9.84 0 1 1 8.34 4.6Zm5.4-7.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.25-.46-2.38-1.47-.88-.78-1.48-1.74-1.65-2.03-.17-.3-.02-.46.13-.61.14-.14.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.61-.92-2.2-.24-.57-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.49 0 1.47 1.07 2.89 1.22 3.09.15.2 2.1 3.21 5.08 4.5.71.31 1.27.49 1.7.63.72.23 1.37.2 1.89.12.58-.09 1.76-.72 2.01-1.42.25-.7.25-1.3.17-1.42-.07-.12-.27-.2-.57-.35Z"/>
+        </svg>
+        Send receipt on WhatsApp · 03046164139
       </a>
-      <button class="btn btn-ghost btn-lg" style="width:100%; justify-content:center; margin-top:10px;" onclick="closeManualPaymentModal()">I'll do this later</button>
+
+      <button type="button" class="btn btn-ghost btn-lg" style="width:100%;justify-content:center;margin-top:9px;" onclick="closeManualPaymentModal()">
+        I'll do this later
+      </button>
     `;
     overlay.classList.add('open');
   }
@@ -4677,12 +4876,13 @@ if (currentUser) {
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
-    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {
+    navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' }).catch(function () {
       // Silently ignore — e.g. when previewing without sw.js served at this scope.
     });
   });
 }
 </script>
+
 
 </body>
 </html>
