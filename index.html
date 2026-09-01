@@ -231,6 +231,12 @@
   .field-error{color:var(--coral); font-size:0.76rem; margin-top:5px; display:none;}
   .field-error.show{display:block;}
   .btn-full{width:100%; padding:12px; border-radius:8px; font-size:0.92rem; margin-top:4px;}
+  .btn-google{
+    width:100%; padding:11px; border-radius:8px; font-size:0.92rem; margin-top:4px;
+    background:#fff; color:#1f2933; border:1px solid #dadce0; font-weight:600;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .btn-google:hover{background:#f7f8f8;}
   .divider{
     display:flex; align-items:center; gap:10px; margin:20px 0;
     color:var(--slate); font-size:0.78rem;
@@ -1065,6 +1071,10 @@
     <div id="loginPanel">
       <h2>Welcome back</h2>
       <div class="modal-sub">Log in to pick up where you left off.</div>
+      <button class="btn btn-google btn-full" onclick="handleGoogleAuth()">
+        <svg width="18" height="18" viewBox="0 0 48 48" style="vertical-align:middle; margin-right:8px;"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.1 5.1 29.3 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.2-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.5 18.9 12.5 24 12.5c3.1 0 5.8 1.1 8 3l6-6C34.1 5.1 29.3 3 24 3 16.1 3 9.3 7.5 6.3 14.7z"/><path fill="#4CAF50" d="M24 45c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 36.6 26.7 37.5 24 37.5c-5.3 0-9.7-3.4-11.3-8.1l-6.5 5C9.2 40.4 16 45 24 45z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.1 5.7l6.2 5.2C40.4 36.4 45 30.9 45 24c0-1.2-.1-2.4-.4-3.5z"/></svg>
+        Continue with Google
+      </button>
       <div class="divider">or</div>
       <div class="field">
         <label for="loginEmail">Email</label>
@@ -1085,6 +1095,10 @@
     <div id="signupPanel" style="display:none;">
       <h2>Create your account</h2>
       <div class="modal-sub">Track your progress across question banks and the library.</div>
+      <button class="btn btn-google btn-full" onclick="handleGoogleAuth()">
+        <svg width="18" height="18" viewBox="0 0 48 48" style="vertical-align:middle; margin-right:8px;"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.1 5.1 29.3 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.2-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.5 18.9 12.5 24 12.5c3.1 0 5.8 1.1 8 3l6-6C34.1 5.1 29.3 3 24 3 16.1 3 9.3 7.5 6.3 14.7z"/><path fill="#4CAF50" d="M24 45c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 36.6 26.7 37.5 24 37.5c-5.3 0-9.7-3.4-11.3-8.1l-6.5 5C9.2 40.4 16 45 24 45z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.1 5.7l6.2 5.2C40.4 36.4 45 30.9 45 24c0-1.2-.1-2.4-.4-3.5z"/></svg>
+        Continue with Google
+      </button>
       <div class="divider">or</div>
       <div class="field">
         <label for="signupName">Name</label>
@@ -1809,12 +1823,25 @@
 
   async function loadProfileFromSupabase(supaUser){
     if(!supaUser || !supabaseClient) return;
-    const { data: profile, error } = await supabaseClient
+    let { data: profile, error } = await supabaseClient
       .from('profiles')
       .select('*')
       .eq('id', supaUser.id)
       .single();
-    if(error){ console.error('profile load failed', error); return; }
+
+    if(error && error.code === 'PGRST116'){
+      // No profile row yet (e.g. first-time Google sign-in with no DB trigger) — create one.
+      const fallbackName = supaUser.user_metadata?.full_name || supaUser.user_metadata?.name || supaUser.email.split('@')[0];
+      const { data: created, error: insertErr } = await supabaseClient
+        .from('profiles')
+        .insert({ id: supaUser.id, name: fallbackName })
+        .select('*')
+        .single();
+      if(insertErr){ console.error('profile creation failed', insertErr); return; }
+      profile = created;
+    } else if(error){
+      console.error('profile load failed', error); return;
+    }
 
     const now = new Date();
     const expiresAt = profile.plan_expires_at ? new Date(profile.plan_expires_at) : null;
@@ -1953,6 +1980,15 @@
     document.getElementById('resetPasswordOverlay').classList.remove('show');
     document.getElementById('newPassword').value = '';
     showToast('Password updated — you\'re all set!');
+  }
+
+  async function handleGoogleAuth(){
+    if(!supabaseClient){ showToast('Not connected — add your Supabase keys first.'); return; }
+    const { error } = await supabaseClient.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin }
+    });
+    if(error){ showToast(error.message || 'Google sign-in failed.'); }
   }
 
   async function saveProfile(){
@@ -3443,22 +3479,41 @@
         </div>
 
         <div class="mp-comparison">
-          <h3>Premium comparison</h3>
+          <h3>Free vs Premium</h3>
           <div class="mp-comparison-row">
-            <span>Full Step 1 + Step 2 CK banks</span>
-            <strong>✓ All plans</strong>
+            <span>Questions per subject</span>
+            <strong style="color:var(--slate);">5 (Free)</strong>
+            <strong>Unlimited</strong>
           </div>
           <div class="mp-comparison-row">
-            <span>Reflex + Full format</span>
-            <strong>✓ All plans</strong>
+            <span>USMLE Step 1 + Step 2 CK banks</span>
+            <strong style="color:var(--slate);">✕</strong>
+            <strong>✓</strong>
+          </div>
+          <div class="mp-comparison-row">
+            <span>High-Yield Library (every subject)</span>
+            <strong style="color:var(--slate);">Preview only</strong>
+            <strong>✓ Full access</strong>
+          </div>
+          <div class="mp-comparison-row">
+            <span>Reflex + Full-format question banks</span>
+            <strong style="color:var(--slate);">✕</strong>
+            <strong>✓</strong>
+          </div>
+          <div class="mp-comparison-row">
+            <span>Full Mock Exams</span>
+            <strong style="color:var(--slate);">✕</strong>
+            <strong>✓</strong>
           </div>
           <div class="mp-comparison-row">
             <span>Detailed explanations + Error Bank</span>
-            <strong>✓ All plans</strong>
+            <strong style="color:var(--slate);">Limited</strong>
+            <strong>✓ Full access</strong>
           </div>
           <div class="mp-comparison-row">
-            <span>Analytics + revision tools</span>
-            <strong>✓ All plans</strong>
+            <span>Performance analytics + revision tools</span>
+            <strong style="color:var(--slate);">✕</strong>
+            <strong>✓</strong>
           </div>
         </div>
 
