@@ -737,6 +737,21 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
   }
   .mp-manual-pay-row:last-child{border-bottom:none;}
   .mp-manual-pay-row span{color:var(--slate);}
+  .mp-copy-wrap{display:flex; align-items:center; justify-content:flex-end; gap:8px; min-width:0; text-align:right;}
+  .mp-copy-value{word-break:break-word;}
+  .mp-copy-btn{
+    width:30px; height:30px; flex:0 0 30px; padding:0; border:1px solid rgba(11,30,61,0.12);
+    border-radius:7px; background:#fff; color:var(--navy-deep); display:inline-flex;
+    align-items:center; justify-content:center; cursor:pointer; transition:all .15s ease;
+  }
+  .mp-copy-btn:hover{background:var(--off);}
+  .mp-copy-btn:active{transform:scale(.96);}
+  .mp-copy-btn svg{width:15px; height:15px; display:block;}
+  .mp-copy-btn.copied{border-color:var(--teal); color:var(--teal);}
+  @media(max-width:560px){
+    .mp-manual-pay-row{align-items:center;}
+    .mp-copy-wrap{max-width:72%; font-size:.82rem;}
+  }
   .mp-manual-pay-ref{
     margin-top:12px; font-size:.82rem; color:var(--slate);
     background:rgba(18,163,154,0.08); border-radius:8px; padding:10px 12px;
@@ -3838,16 +3853,57 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
 
   /* ---- Manual payment fallback (while Rapid Gateway keys are pending approval) ---- */
   const MANUAL_PAYMENT_DETAILS = {
-    bankName: 'Meezan Bank',
-    accountTitle: 'MEDICIPATE',
-    accountNumber: '0000-0000-0000',
-    iban: 'PK00 MEZN 0000 0000 0000 0000',
-    jazzcash: '0304 6164139',
-    easypaisa: '0316 6323085',
+    bankAlfalah: {
+      bankName: 'Bank Alfalah',
+      accountTitle: 'MUHAMMAD SAQLAIN FAROOQ',
+      accountNumber: '09901009041271',
+      iban: 'PK52ALFH0990001009041271'
+    },
+    hbl: {
+      bankName: 'HBL',
+      accountTitle: 'M Saqlain Iaa',
+      accountNumber: '50867991927303',
+      iban: 'PK05HABB0050867991927303',
+      branchName: 'IBB BUS STAND LAYYAH'
+    },
+    jazzcash: '03046164139',
+    easypaisa: '03046164139',
+    sadapay: '03046164139',
+    accountName: 'Muhammad Saqlain Farooq',
     whatsapp: '923046164139'
   };
   function generateManualOrderRef(){
     return 'MP-' + Date.now().toString(36).toUpperCase();
+  }
+  async function copyManualPaymentValue(value, button){
+    try {
+      await navigator.clipboard.writeText(String(value));
+    } catch(e) {
+      const ta = document.createElement('textarea');
+      ta.value = String(value);
+      ta.setAttribute('readonly','');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); } catch(err) {}
+      ta.remove();
+    }
+    if(button){
+      const original = button.innerHTML;
+      button.classList.add('copied');
+      button.setAttribute('aria-label','Copied');
+      button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9.2 16.2 4.9 12l-1.4 1.4 5.7 5.7L20.5 7.8l-1.4-1.4z"/></svg>';
+      setTimeout(() => {
+        button.classList.remove('copied');
+        button.setAttribute('aria-label','Copy');
+        button.innerHTML = original;
+      }, 1200);
+    }
+  }
+  function mpCopyButton(value){
+    const safe = String(value).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return '<span class="mp-copy-wrap"><strong class="mp-copy-value">' + safe + '</strong><button type="button" class="mp-copy-btn" aria-label="Copy" title="Copy" onclick="copyManualPaymentValue(\'' + String(value).replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\',this)"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg></button></span>';
   }
   function openManualPaymentModal(cycle){
     const plan = CONFIG.pricing[cycle];
@@ -3878,16 +3934,27 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
         are activated within a few hours.
       </p>
       <div class="mp-manual-pay-grid">
-        <div class="mp-manual-pay-row"><span>Bank</span><strong>${MANUAL_PAYMENT_DETAILS.bankName}</strong></div>
-        <div class="mp-manual-pay-row"><span>Account Title</span><strong>${MANUAL_PAYMENT_DETAILS.accountTitle}</strong></div>
-        <div class="mp-manual-pay-row"><span>Account Number</span><strong>${MANUAL_PAYMENT_DETAILS.accountNumber}</strong></div>
-        <div class="mp-manual-pay-row"><span>IBAN</span><strong>${MANUAL_PAYMENT_DETAILS.iban}</strong></div>
-        <div class="mp-manual-pay-row"><span>JazzCash</span><strong>${MANUAL_PAYMENT_DETAILS.jazzcash}</strong></div>
-        <div class="mp-manual-pay-row"><span>Easypaisa</span><strong>${MANUAL_PAYMENT_DETAILS.easypaisa}</strong></div>
+        <div class="mp-manual-pay-row"><span>Bank</span><strong>${MANUAL_PAYMENT_DETAILS.bankAlfalah.bankName}</strong></div>
+        <div class="mp-manual-pay-row"><span>Account Title</span><strong>${MANUAL_PAYMENT_DETAILS.bankAlfalah.accountTitle}</strong></div>
+        <div class="mp-manual-pay-row"><span>Account Number</span>${mpCopyButton(MANUAL_PAYMENT_DETAILS.bankAlfalah.accountNumber)}</div>
+        <div class="mp-manual-pay-row"><span>IBAN</span>${mpCopyButton(MANUAL_PAYMENT_DETAILS.bankAlfalah.iban)}</div>
+        <div class="mp-manual-pay-row"><span>Bank</span><strong>${MANUAL_PAYMENT_DETAILS.hbl.bankName}</strong></div>
+        <div class="mp-manual-pay-row"><span>Account Title</span><strong>${MANUAL_PAYMENT_DETAILS.hbl.accountTitle}</strong></div>
+        <div class="mp-manual-pay-row"><span>Account Number</span>${mpCopyButton(MANUAL_PAYMENT_DETAILS.hbl.accountNumber)}</div>
+        <div class="mp-manual-pay-row"><span>IBAN</span>${mpCopyButton(MANUAL_PAYMENT_DETAILS.hbl.iban)}</div>
+        <div class="mp-manual-pay-row"><span>Branch</span><strong>${MANUAL_PAYMENT_DETAILS.hbl.branchName}</strong></div>
+        <div class="mp-manual-pay-row"><span>JazzCash</span>${mpCopyButton(MANUAL_PAYMENT_DETAILS.jazzcash)}</div>
+        <div class="mp-manual-pay-row"><span>Easypaisa</span>${mpCopyButton(MANUAL_PAYMENT_DETAILS.easypaisa)}</div>
+        <div class="mp-manual-pay-row"><span>SadaPay</span>${mpCopyButton(MANUAL_PAYMENT_DETAILS.sadapay)}</div>
+        <div class="mp-manual-pay-row"><span>Account Name</span><strong>${MANUAL_PAYMENT_DETAILS.accountName}</strong></div>
       </div>
       <div class="mp-manual-pay-ref">Order reference: <strong>${orderRef}</strong> — include this when you message us.</div>
-      <a class="btn btn-coral btn-lg" style="width:100%; justify-content:center; margin-top:16px;" href="${waLink}" target="_blank" rel="noopener noreferrer">
-        Send payment screenshot on WhatsApp
+      <a class="btn btn-coral btn-lg" style="width:100%; justify-content:center; margin-top:16px; gap:10px;" href="${waLink}" target="_blank" rel="noopener noreferrer" aria-label="Send payment screenshot on WhatsApp">
+        <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true" focusable="false" style="display:block;">
+          <path fill="currentColor" d="M19.11 17.23c-.27-.14-1.58-.78-1.82-.87-.24-.09-.42-.14-.6.14-.18.27-.69.87-.84 1.05-.15.18-.31.2-.58.07-.27-.14-1.13-.42-2.15-1.33-.79-.7-1.33-1.56-1.49-1.83-.16-.27-.02-.42.12-.56.12-.12.27-.31.4-.47.13-.16.18-.27.27-.45.09-.18.04-.34-.02-.47-.07-.14-.6-1.45-.82-1.98-.22-.52-.44-.45-.6-.46h-.51c-.18 0-.47.07-.71.34-.24.27-.93.91-.93 2.22s.96 2.58 1.09 2.76c.13.18 1.89 2.89 4.58 4.05.64.28 1.14.45 1.53.58.64.2 1.22.17 1.68.1.51-.08 1.58-.65 1.8-1.28.22-.63.22-1.17.16-1.28-.07-.11-.24-.18-.51-.31z"/>
+          <path fill="currentColor" d="M16.02 3.2c-7.07 0-12.82 5.75-12.82 12.82 0 2.26.59 4.47 1.72 6.42L3.1 28.8l6.5-1.71a12.77 12.77 0 0 0 6.42 1.74h.01c7.06 0 12.81-5.75 12.81-12.82S23.08 3.2 16.02 3.2zm0 23.36h-.01c-2.01 0-3.98-.54-5.69-1.56l-.41-.24-3.86 1.01 1.03-3.76-.27-.39a10.56 10.56 0 1 1 9.21 4.94z"/>
+        </svg>
+        Send payment screenshot
       </a>
       <button class="btn btn-ghost btn-lg" style="width:100%; justify-content:center; margin-top:10px;" onclick="closeManualPaymentModal()">I'll do this later</button>
     `;
