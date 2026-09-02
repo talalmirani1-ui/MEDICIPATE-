@@ -2951,7 +2951,7 @@
           const freeCount = topics.length > 0 ? 1 : 0;
           const premiumCount = topics.length - freeCount;
           const inner = `<div class="dc-icon" style="background:rgba(18,163,154,0.12); color:var(--teal);">📚</div><h4>${escapeHtml(sys)}</h4><p class="lib-meta">${topics.length} topics · ${freeCount} FREE · ${premiumCount} PREMIUM</p><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;"><span class="status-badge" style="background:#e8faf7;color:#087d77;">FREE topics</span><span class="status-badge" style="background:#fff4e5;color:#9a5b00;">🔒 PREMIUM topics</span></div>`;
-          return `<div class="dash-card clickable" onclick="openImportedLibrarySystem(${JSON.stringify(sys)})">${inner}</div>`;
+          return `<div class="dash-card clickable" onclick="openImportedLibrarySystem(${attrJson(sys)})">${inner}</div>`;
         }).join('')}
       </div>
       <div id="importedLibraryDetail" style="margin-top:18px;"></div>
@@ -2960,6 +2960,12 @@
 
   function escapeHtml(v){
     return String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  // Safely embed a JSON-stringified value inside a double-quoted HTML attribute
+  // (e.g. onclick="fn(...)"). JSON.stringify wraps strings in double quotes,
+  // which would otherwise prematurely close the surrounding HTML attribute.
+  function attrJson(v){
+    return escapeHtml(JSON.stringify(v));
   }
   function openImportedLibrarySystem(system, fromHistory){
     const root=document.getElementById('importedLibraryDetail');
@@ -2970,7 +2976,7 @@
       const access=libraryTopicAccess(system,t);
       const locked=!access.free && !isPro();
       const badge=access.free?'<span class="status-badge" style="background:#e8faf7;color:#087d77;">FREE</span>':'<span class="status-badge" style="background:#fff4e5;color:#9a5b00;">🔒 PREMIUM</span>';
-      return `<div class="list-row" ${locked?'':'onclick="openImportedLibraryTopic('+JSON.stringify(system)+','+JSON.stringify(t)+')"'} style="${locked?'opacity:.72;':''}cursor:${locked?'default':'pointer'}"><div class="system-pill">${locked?'🔒':'📖'}</div><div style="flex:1"><div class="lr-title">${escapeHtml(t)} ${badge}</div><div class="lr-sub">${IMPORTED_LIBRARY_HEADINGS.length} complete reference sections · ${access.free?'Free topic':'Premium topic'}</div></div>${locked?'<button class="btn btn-ghost" type="button" onclick="openUpgradeModal();event.stopPropagation();">Unlock</button>':''}</div>`;
+      return `<div class="list-row" ${locked?'':'onclick="openImportedLibraryTopic('+attrJson(system)+','+attrJson(t)+')"'} style="${locked?'opacity:.72;':''}cursor:${locked?'default':'pointer'}"><div class="system-pill">${locked?'🔒':'📖'}</div><div style="flex:1"><div class="lr-title">${escapeHtml(t)} ${badge}</div><div class="lr-sub">${IMPORTED_LIBRARY_HEADINGS.length} complete reference sections · ${access.free?'Free topic':'Premium topic'}</div></div>${locked?'<button class="btn btn-ghost" type="button" onclick="openUpgradeModal();event.stopPropagation();">Unlock</button>':''}</div>`;
     }).join('')}</div>`;
     root.scrollIntoView({behavior:'smooth',block:'start'});
   }
@@ -2980,7 +2986,7 @@
     if(!fromHistory){ try{ history.pushState({medicipateDashboard:true, section:'library', libraryLevel:'topic', system:system, topic:topic}, '', window.location.pathname + '#library-' + encodeURIComponent(system) + '-' + encodeURIComponent(topic)); }catch(e){} }
     const root=document.getElementById('importedLibraryDetail');
     const data=(IMPORTED_LIBRARY_DATA[system]||{})[topic]||{};
-    root.innerHTML=`<div class="list-card"><div class="dash-head" style="padding:16px 16px 6px;"><button class="btn btn-ghost" onclick="openImportedLibrarySystem(${JSON.stringify(system)})">← Back</button><div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><h2 style="margin:0;">${escapeHtml(topic)}</h2>${access.free?'<span class="status-badge" style="background:#e8faf7;color:#087d77;">FREE</span>':'<span class="status-badge" style="background:#fff4e5;color:#9a5b00;">PREMIUM</span>'}</div><p>Complete topic access — all reference sections below are available at this tier.</p></div>${IMPORTED_LIBRARY_HEADINGS.map(h=>`<div class="list-row" style="display:block;padding:14px 16px;"><div class="lr-title" style="margin-bottom:6px;">${escapeHtml(h)}</div><div class="lr-sub" style="white-space:normal;line-height:1.6;">${escapeHtml(data[h]||'No source content supplied.')}</div></div>`).join('')}</div>`;
+    root.innerHTML=`<div class="list-card"><div class="dash-head" style="padding:16px 16px 6px;"><button class="btn btn-ghost" onclick="openImportedLibrarySystem(${attrJson(system)})">← Back</button><div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><h2 style="margin:0;">${escapeHtml(topic)}</h2>${access.free?'<span class="status-badge" style="background:#e8faf7;color:#087d77;">FREE</span>':'<span class="status-badge" style="background:#fff4e5;color:#9a5b00;">PREMIUM</span>'}</div><p>Complete topic access — all reference sections below are available at this tier.</p></div>${IMPORTED_LIBRARY_HEADINGS.map(h=>`<div class="list-row" style="display:block;padding:14px 16px;"><div class="lr-title" style="margin-bottom:6px;">${escapeHtml(h)}</div><div class="lr-sub" style="white-space:normal;line-height:1.6;">${escapeHtml(data[h]||'No source content supplied.')}</div></div>`).join('')}</div>`;
     root.scrollIntoView({behavior:'smooth',block:'start'});
   }
 
