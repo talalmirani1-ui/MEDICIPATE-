@@ -1,6 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<!-- Meta Pixel Code -->
+<script>
+!function(f,b,e,v,n,t,s)
+{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];
+s.parentNode.insertBefore(t,s)}(window, document,'script',
+'https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '4410083635907918');
+fbq('track', 'PageView');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
+/></noscript>
+<!-- End Meta Pixel Code -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MEDICIPATE — USMLE & MBBS Exam Prep</title>
@@ -2975,8 +2992,8 @@
     root.innerHTML=`<div class="list-card"><div class="dash-head" style="padding:16px 16px 6px;"><h2>${escapeHtml(system)}</h2><p>Each system is divided by complete topics: the first meaningful half is FREE and the remaining topics are PREMIUM. A Free topic is never truncated.</p></div>${topics.map(t=>{
       const access=libraryTopicAccess(system,t);
       const locked=!access.free && !isPro();
-      const badge=access.free?'<span class="status-badge" style="background:#e8faf7;color:#087d77;">FREE</span>':'<span class="status-badge" style="background:#fff4e5;color:#9a5b00;">🔒 PREMIUM</span>';
-      return `<div class="list-row" ${locked?'':'onclick="openImportedLibraryTopic('+attrJson(system)+','+attrJson(t)+')"'} style="${locked?'opacity:.72;':''}cursor:${locked?'default':'pointer'}"><div class="system-pill">${locked?'🔒':'📖'}</div><div style="flex:1"><div class="lr-title">${escapeHtml(t)} ${badge}</div><div class="lr-sub">${IMPORTED_LIBRARY_HEADINGS.length} complete reference sections · ${access.free?'Free topic':'Premium topic'}</div></div>${locked?'<button class="btn btn-ghost" type="button" onclick="openUpgradeModal();event.stopPropagation();">Unlock</button>':''}</div>`;
+      const badge=access.free?'<span class="status-badge" style="background:#e8faf7;color:#087d77;">FREE</span>':(locked?'<span class="status-badge" style="background:#fff4e5;color:#9a5b00;">🔒 PREMIUM</span>':'<span class="status-badge" style="background:#e8faf7;color:#087d77;">✓ UNLOCKED</span>');
+      return `<div class="list-row" ${locked?'':'onclick="openImportedLibraryTopic('+attrJson(system)+','+attrJson(t)+')"'} style="${locked?'opacity:.72;':''}cursor:${locked?'default':'pointer'}"><div class="system-pill">${locked?'🔒':'📖'}</div><div style="flex:1"><div class="lr-title">${escapeHtml(t)} ${badge}</div><div class="lr-sub">${IMPORTED_LIBRARY_HEADINGS.length} complete reference sections · ${access.free?'Free topic':(locked?'Premium topic':'Unlocked')}</div></div>${locked?'<button class="btn btn-ghost" type="button" onclick="openUpgradeModal();event.stopPropagation();">Unlock</button>':''}</div>`;
     }).join('')}</div>`;
     root.scrollIntoView({behavior:'smooth',block:'start'});
   }
@@ -2986,7 +3003,7 @@
     if(!fromHistory){ try{ history.pushState({medicipateDashboard:true, section:'library', libraryLevel:'topic', system:system, topic:topic}, '', window.location.pathname + '#library-' + encodeURIComponent(system) + '-' + encodeURIComponent(topic)); }catch(e){} }
     const root=document.getElementById('importedLibraryDetail');
     const data=(IMPORTED_LIBRARY_DATA[system]||{})[topic]||{};
-    root.innerHTML=`<div class="list-card"><div class="dash-head" style="padding:16px 16px 6px;"><button class="btn btn-ghost" onclick="openImportedLibrarySystem(${attrJson(system)})">← Back</button><div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><h2 style="margin:0;">${escapeHtml(topic)}</h2>${access.free?'<span class="status-badge" style="background:#e8faf7;color:#087d77;">FREE</span>':'<span class="status-badge" style="background:#fff4e5;color:#9a5b00;">PREMIUM</span>'}</div><p>Complete topic access — all reference sections below are available at this tier.</p></div>${IMPORTED_LIBRARY_HEADINGS.map(h=>`<div class="list-row" style="display:block;padding:14px 16px;"><div class="lr-title" style="margin-bottom:6px;">${escapeHtml(h)}</div><div class="lr-sub" style="white-space:normal;line-height:1.6;">${escapeHtml(data[h]||'No source content supplied.')}</div></div>`).join('')}</div>`;
+    root.innerHTML=`<div class="list-card"><div class="dash-head" style="padding:16px 16px 6px;"><button class="btn btn-ghost" onclick="openImportedLibrarySystem(${attrJson(system)})">← Back</button><div style="margin-top:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><h2 style="margin:0;">${escapeHtml(topic)}</h2>${access.free?'<span class="status-badge" style="background:#e8faf7;color:#087d77;">FREE</span>':'<span class="status-badge" style="background:#e8faf7;color:#087d77;">✓ UNLOCKED</span>'}</div><p>Complete topic access — all reference sections below are available at this tier.</p></div>${IMPORTED_LIBRARY_HEADINGS.map(h=>`<div class="list-row" style="display:block;padding:14px 16px;"><div class="lr-title" style="margin-bottom:6px;">${escapeHtml(h)}</div><div class="lr-sub" style="white-space:normal;line-height:1.6;">${escapeHtml(data[h]||'No source content supplied.')}</div></div>`).join('')}</div>`;
     root.scrollIntoView({behavior:'smooth',block:'start'});
   }
 
@@ -3818,6 +3835,15 @@
           }
           sessionStorage.removeItem('medicipatePendingOrder');
           updatePlanBadge();
+          // Meta Pixel: fire Purchase event once payment is confirmed server-side.
+          if(typeof fbq === 'function'){
+            fbq('track', 'Purchase', {
+              value: data.amount || undefined,
+              currency: CONFIG.pricing.currency || 'PKR',
+              content_name: data.planLabel || undefined,
+              content_type: 'subscription'
+            });
+          }
           showToast(`${data.planLabel} payment confirmed — MEDICIPATE Pro is active.`);
           showSection('profile');
           window.history.replaceState({}, document.title, window.location.pathname);
