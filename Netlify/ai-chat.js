@@ -42,7 +42,7 @@ exports.handler = async (event) => {
 
   const safeHistory = Array.isArray(history)
     ? history
-        .filter(m => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+        .filter(m => m && (m.role === 'user' || m.role === 'assistant' || m.role === 'model') && typeof m.content === 'string')
         .slice(-12)
     : [];
 
@@ -50,9 +50,6 @@ exports.handler = async (event) => {
     return { statusCode: 500, body: JSON.stringify({ error: 'Assistant is not configured yet.' }) };
   }
 
-  // Gemini's REST API doesn't take a separate "system" field the way Claude's does for
-  // this simple call shape, so we prepend the system prompt as the first turn and have
-  // the model "acknowledge" it, then follow with the real conversation.
   const geminiContents = [
     { role: 'user', parts: [{ text: SYSTEM_PROMPT }] },
     { role: 'model', parts: [{ text: 'Understood — I\'m ready to help with MEDICIPATE site questions and general USMLE/MBBS study questions, within those boundaries.' }] },
@@ -65,7 +62,7 @@ exports.handler = async (event) => {
 
   try {
     const response = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+      'https://googleapis.com',
       {
         method: 'POST',
         headers: {
@@ -90,15 +87,22 @@ exports.handler = async (event) => {
 
     const data = await response.json();
     const reply = data?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim()
-      || "Sorry, I couldn't come up with a response — please try rephrasing.";
+      || "Sorry, I could not generate a response.";
 
     return {
       statusCode: 200,
-      headers: { 'content-type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*' 
+      },
       body: JSON.stringify({ reply })
     };
-  } catch (err) {
-    console.error('ai-chat function error:', err);
-    return { statusCode: 500, body: JSON.stringify({ error: 'Something went wrong. Please try again.' }) };
+
+  } catch (error) {
+    console.error('Error handling function:', error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: 'The assistant is temporarily unavailable. Please try again.' })
+    };
   }
 };
