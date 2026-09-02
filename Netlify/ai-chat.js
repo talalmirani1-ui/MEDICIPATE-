@@ -62,7 +62,7 @@ exports.handler = async (event) => {
 
   try {
     const response = await fetch(
-      'https://googleapis.com',
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
       {
         method: 'POST',
         headers: {
@@ -86,6 +86,8 @@ exports.handler = async (event) => {
     }
 
     const data = await response.json();
+    
+    // Fixed the typo here: changed data?.candidates?.?.content to data?.candidates?.[0]?.content
     const reply = data?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim()
       || "Sorry, I could not generate a response.";
 
