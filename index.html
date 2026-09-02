@@ -525,7 +525,10 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
   .sidebar-drawer-close{display:none; margin-left:auto; background:none; border:none; color:var(--off); font-size:1.2rem; cursor:pointer;}
   .sidebar-student{
     display:flex; align-items:center; gap:10px; padding:16px 20px; border-bottom:1px solid var(--line);
+    cursor:pointer; transition:background .15s ease; width:100%; text-align:left; background:none; border-left:0; border-right:0; border-top:0; font:inherit; color:inherit;
   }
+  .sidebar-student:hover{background:rgba(243,245,242,0.06);}
+  .sidebar-student:focus-visible{outline:2px solid var(--teal); outline-offset:-2px;}
   .sidebar-student .avatar{
     width:36px; height:36px; border-radius:50%; background:var(--teal); color:var(--navy-deep);
     display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.95rem; flex-shrink:0;
@@ -595,9 +598,28 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
   }
   @media (max-width:960px){.drawer-toggle{display:flex;}}
   .dash-topbar-title{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:1.05rem; color:var(--navy-deep);}
-  .dash-topbar-actions{margin-left:auto; display:flex; align-items:center; gap:12px;}
+  .dash-topbar-actions{margin-left:auto; display:flex; align-items:center; gap:14px;}
   .dash-topbar-link{font-size:0.83rem; color:var(--slate); font-weight:600;}
   .dash-topbar-link:hover{color:var(--navy-deep);}
+
+  .dash-topbar-profile{
+    display:flex; align-items:center; gap:9px; background:#fff; border:1px solid rgba(11,30,61,0.12);
+    border-radius:999px; padding:5px 14px 5px 6px; cursor:pointer; transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .dash-topbar-profile:hover{border-color:var(--teal); box-shadow:0 4px 14px rgba(11,30,61,0.08);}
+  .dash-topbar-profile:focus-visible{outline:2px solid var(--teal); outline-offset:1px;}
+  .dash-topbar-profile .avatar{
+    width:32px; height:32px; border-radius:50%; background:var(--teal); color:var(--navy-deep);
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem; flex-shrink:0;
+  }
+  .dash-topbar-profile .tp-info{display:flex; flex-direction:column; align-items:flex-start; line-height:1.25;}
+  .dash-topbar-profile .tp-name{font-size:0.85rem; font-weight:700; color:var(--navy-deep);}
+  .dash-topbar-profile .tp-plan{font-size:0.68rem; font-family:'IBM Plex Mono',monospace; color:var(--slate);}
+  .dash-topbar-profile .tp-plan.pro{color:#c2410c; font-weight:600;}
+  @media(max-width:600px){
+    .dash-topbar-profile .tp-info{display:none;}
+    .dash-topbar-profile{padding:4px;}
+  }
 
   .dash-content{max-width:1080px; margin:0 auto; padding:30px 28px 80px;}
   .dash-section{display:none;}
@@ -1812,14 +1834,14 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
         <span class="logo">MEDICIPATE</span>
         <button class="sidebar-drawer-close" onclick="closeDrawer()" aria-label="Close menu">✕</button>
       </div>
-      <div class="sidebar-student">
+      <button type="button" class="sidebar-student" onclick="showSection('profile'); closeDrawer();" aria-label="Open your profile">
         <div class="avatar" id="dashAvatar">S</div>
         <div>
           <div class="s-name" id="dashStudentName">Student</div>
           <div class="s-exam" id="dashStudentExam">USMLE Step 1</div>
           <span class="sidebar-plan-badge" id="dashPlanBadge">FREE PLAN</span>
         </div>
-      </div>
+      </button>
 
       <nav class="sidebar-nav" id="sidebarNav" aria-label="Sections"></nav>
 
@@ -1846,6 +1868,13 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
         <div class="dash-topbar-actions">
           <a class="dash-topbar-link" href="#" onclick="exitDashboard(); return false;">View public site</a>
           <a class="dash-topbar-link" href="#" onclick="doLogout(); return false;">Log out</a>
+          <button type="button" class="dash-topbar-profile" onclick="showSection('profile')" aria-label="Open your profile">
+            <div class="avatar" id="topbarAvatar">S</div>
+            <div class="tp-info">
+              <span class="tp-name" id="topbarName">Student</span>
+              <span class="tp-plan" id="topbarPlanBadge">Free Plan</span>
+            </div>
+          </button>
         </div>
       </div>
 
@@ -2302,6 +2331,8 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
     document.getElementById('dashStudentName').textContent = name;
     document.getElementById('dashAvatar').textContent = name.charAt(0).toUpperCase();
     document.getElementById('dashStudentExam').textContent = CONFIG.student.defaultExam;
+    document.getElementById('topbarName').textContent = name;
+    document.getElementById('topbarAvatar').textContent = name.charAt(0).toUpperCase();
     buildSidebarNav();
     updatePlanBadge();
     mpPushDashboardHistory('overview');
@@ -2329,6 +2360,11 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
     const badge = document.getElementById('dashPlanBadge');
     badge.textContent = isPro() ? 'PRO PLAN' : 'FREE PLAN';
     badge.classList.toggle('pro', isPro());
+    const topbarBadge = document.getElementById('topbarPlanBadge');
+    if(topbarBadge){
+      topbarBadge.textContent = isPro() ? 'Premium · Active' : 'Free Plan';
+      topbarBadge.classList.toggle('pro', isPro());
+    }
   }
 
   function buildSidebarNav(){
@@ -4857,12 +4893,12 @@ if (currentUser) {
 
 <style>
   #mp-chat-launcher{
-    position:fixed; right:20px; bottom:20px; z-index:400;
+    position:fixed; right:20px; bottom:20px; z-index:110;
     width:56px; height:56px; border-radius:50%; border:none; cursor:pointer;
     background:var(--teal); color:var(--navy-deep);
     display:flex; align-items:center; justify-content:center;
     box-shadow:0 6px 20px rgba(11,30,61,0.35);
-    transition:transform .15s ease;
+    transition:transform .15s ease, bottom .15s ease;
   }
   #mp-chat-launcher:hover{transform:scale(1.06);}
   #mp-chat-launcher svg{width:26px; height:26px;}
@@ -4871,7 +4907,7 @@ if (currentUser) {
   #mp-chat-launcher.open .mp-chat-close-icon{display:block;}
 
   #mp-chat-window{
-    position:fixed; right:20px; bottom:88px; z-index:400;
+    position:fixed; right:20px; bottom:88px; z-index:410;
     width:min(360px, calc(100vw - 32px));
     height:min(520px, calc(100vh - 140px));
     background:var(--off); border-radius:16px; overflow:hidden;
@@ -4881,6 +4917,19 @@ if (currentUser) {
     border:1px solid rgba(11,30,61,0.08);
   }
   #mp-chat-window.open{display:flex;}
+
+  /* Keep the chat launcher above the mobile app footer nav (68px + safe-area)
+     so it never sits on top of / blocks the Profile tab. */
+  @media(max-width:960px){
+    #mp-chat-launcher{
+      bottom:calc(68px + env(safe-area-inset-bottom) + 16px);
+      z-index:110;
+    }
+    #mp-chat-window{
+      bottom:calc(68px + env(safe-area-inset-bottom) + 84px);
+    }
+  }
+  #mp-chat-launcher.open{ z-index:410; }
 
   #mp-chat-header{
     background:var(--navy-deep); color:var(--off); padding:14px 16px;
@@ -4961,9 +5010,9 @@ if (currentUser) {
 
   @media (max-width:480px){
     #mp-chat-window{
-      right:12px; left:12px; width:auto; bottom:80px; height:min(65vh, 520px);
+      right:12px; left:12px; width:auto; height:min(65vh, 520px);
     }
-    #mp-chat-launcher{right:16px; bottom:16px;}
+    #mp-chat-launcher{right:16px;}
   }
 </style>
 
