@@ -727,6 +727,129 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
     font-family:'IBM Plex Mono',monospace; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em;
     color:var(--coral); margin-bottom:8px; display:block;
   }
+  /* Manual checkout — scoped to payment modal only */
+  #manualPaymentOverlay .modal{
+    max-width:460px;
+    max-height:90vh;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+  }
+  #manualPaymentOverlay #manualPaymentBody{
+    min-height:0;
+    overflow-y:auto;
+    padding-right:3px;
+    overscroll-behavior:contain;
+    -webkit-overflow-scrolling:touch;
+  }
+  #manualPaymentOverlay .mp-manual-pay-grid{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    border:0;
+    overflow:visible;
+  }
+  #manualPaymentOverlay .mp-payment-account{
+    border:1px solid rgba(11,30,61,0.11);
+    border-radius:12px;
+    overflow:hidden;
+    background:#fff;
+  }
+  #manualPaymentOverlay .mp-payment-account-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:11px 14px;
+    background:var(--off);
+    border-bottom:1px solid rgba(11,30,61,0.08);
+  }
+  #manualPaymentOverlay .mp-payment-account-title{
+    font-weight:800;
+    color:var(--navy-deep);
+    font-size:.9rem;
+  }
+  #manualPaymentOverlay .mp-payment-account-badge{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:.66rem;
+    font-weight:700;
+    color:var(--teal);
+    text-transform:uppercase;
+    letter-spacing:.05em;
+  }
+  #manualPaymentOverlay .mp-payment-account-body{padding:3px 14px;}
+  #manualPaymentOverlay .mp-manual-pay-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:10px 0;
+    font-size:.84rem;
+    color:var(--navy-deep);
+    border-bottom:1px solid rgba(11,30,61,0.07);
+  }
+  #manualPaymentOverlay .mp-payment-account-body .mp-manual-pay-row:last-child{border-bottom:none;}
+  #manualPaymentOverlay .mp-manual-pay-row > span:first-child{color:var(--slate); flex:0 0 auto;}
+  #manualPaymentOverlay .mp-manual-pay-row > strong{
+    text-align:right;
+    word-break:break-word;
+  }
+  #manualPaymentOverlay .mp-wallet-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:10px 0;
+    border-bottom:1px solid rgba(11,30,61,0.07);
+  }
+  #manualPaymentOverlay .mp-wallet-row:last-child{border-bottom:none;}
+  #manualPaymentOverlay .mp-wallet-info{min-width:0;}
+  #manualPaymentOverlay .mp-wallet-name{
+    display:block;
+    font-weight:800;
+    color:var(--navy-deep);
+    font-size:.86rem;
+    margin-bottom:3px;
+  }
+  #manualPaymentOverlay .mp-wallet-owner{
+    display:block;
+    color:var(--slate);
+    font-size:.76rem;
+  }
+  #manualPaymentOverlay .mp-whatsapp-action{
+    position:sticky;
+    bottom:0;
+    z-index:3;
+    box-shadow:0 -8px 18px rgba(255,255,255,.92);
+    background:#fff;
+    padding-top:10px;
+    padding-bottom:2px;
+  }
+  #manualPaymentOverlay .mp-whatsapp-btn{
+    background:#25D366 !important;
+    border-color:#25D366 !important;
+    color:#fff !important;
+    box-shadow:0 5px 14px rgba(37,211,102,.22);
+    border-radius:10px !important;
+    font-weight:800;
+    min-height:48px;
+  }
+  #manualPaymentOverlay .mp-whatsapp-btn:hover{background:#20bd5b !important;}
+  @media(max-width:560px){
+    #manualPaymentOverlay{padding:10px;}
+    #manualPaymentOverlay .modal{
+      max-width:none;
+      max-height:92vh;
+      padding:28px 18px 16px;
+      border-radius:14px;
+    }
+    #manualPaymentOverlay #manualPaymentBody{padding-right:2px;}
+    #manualPaymentOverlay .mp-payment-account-head{padding:10px 12px;}
+    #manualPaymentOverlay .mp-payment-account-body{padding:2px 12px;}
+    #manualPaymentOverlay .mp-manual-pay-row,
+    #manualPaymentOverlay .mp-wallet-row{gap:8px;}
+    #manualPaymentOverlay .mp-copy-wrap{max-width:68%; font-size:.8rem;}
+  }
   .mp-manual-pay-grid{
     border:1px solid rgba(11,30,61,0.1); border-radius:10px; overflow:hidden;
   }
@@ -3934,28 +4057,62 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
         are activated within a few hours.
       </p>
       <div class="mp-manual-pay-grid">
-        <div class="mp-manual-pay-row"><span>Bank</span><strong>${MANUAL_PAYMENT_DETAILS.bankAlfalah.bankName}</strong></div>
-        <div class="mp-manual-pay-row"><span>Account Title</span><strong>${MANUAL_PAYMENT_DETAILS.bankAlfalah.accountTitle}</strong></div>
-        <div class="mp-manual-pay-row"><span>Account Number</span>${mpCopyButton(MANUAL_PAYMENT_DETAILS.bankAlfalah.accountNumber)}</div>
-        <div class="mp-manual-pay-row"><span>IBAN</span>${mpCopyButton(MANUAL_PAYMENT_DETAILS.bankAlfalah.iban)}</div>
-        <div class="mp-manual-pay-row"><span>Bank</span><strong>${MANUAL_PAYMENT_DETAILS.hbl.bankName}</strong></div>
-        <div class="mp-manual-pay-row"><span>Account Title</span><strong>${MANUAL_PAYMENT_DETAILS.hbl.accountTitle}</strong></div>
-        <div class="mp-manual-pay-row"><span>Account Number</span>${mpCopyButton(MANUAL_PAYMENT_DETAILS.hbl.accountNumber)}</div>
-        <div class="mp-manual-pay-row"><span>IBAN</span>${mpCopyButton(MANUAL_PAYMENT_DETAILS.hbl.iban)}</div>
-        <div class="mp-manual-pay-row"><span>Branch</span><strong>${MANUAL_PAYMENT_DETAILS.hbl.branchName}</strong></div>
-        <div class="mp-manual-pay-row"><span>JazzCash</span>${mpCopyButton(MANUAL_PAYMENT_DETAILS.jazzcash)}</div>
-        <div class="mp-manual-pay-row"><span>Easypaisa</span>${mpCopyButton(MANUAL_PAYMENT_DETAILS.easypaisa)}</div>
-        <div class="mp-manual-pay-row"><span>SadaPay</span>${mpCopyButton(MANUAL_PAYMENT_DETAILS.sadapay)}</div>
-        <div class="mp-manual-pay-row"><span>Account Name</span><strong>${MANUAL_PAYMENT_DETAILS.accountName}</strong></div>
+        <section class="mp-payment-account" aria-label="Bank Alfalah account">
+          <div class="mp-payment-account-head">
+            <span class="mp-payment-account-title">Bank Alfalah</span>
+            <span class="mp-payment-account-badge">Account 01</span>
+          </div>
+          <div class="mp-payment-account-body">
+            <div class="mp-manual-pay-row"><span>Account Title</span><strong>${MANUAL_PAYMENT_DETAILS.bankAlfalah.accountTitle}</strong></div>
+            <div class="mp-manual-pay-row"><span>Account Number</span>${mpCopyButton(MANUAL_PAYMENT_DETAILS.bankAlfalah.accountNumber)}</div>
+            <div class="mp-manual-pay-row"><span>IBAN</span>${mpCopyButton(MANUAL_PAYMENT_DETAILS.bankAlfalah.iban)}</div>
+          </div>
+        </section>
+
+        <section class="mp-payment-account" aria-label="HBL account">
+          <div class="mp-payment-account-head">
+            <span class="mp-payment-account-title">HBL</span>
+            <span class="mp-payment-account-badge">Account 02</span>
+          </div>
+          <div class="mp-payment-account-body">
+            <div class="mp-manual-pay-row"><span>Account Title</span><strong>${MANUAL_PAYMENT_DETAILS.hbl.accountTitle}</strong></div>
+            <div class="mp-manual-pay-row"><span>Account Number</span>${mpCopyButton(MANUAL_PAYMENT_DETAILS.hbl.accountNumber)}</div>
+            <div class="mp-manual-pay-row"><span>IBAN</span>${mpCopyButton(MANUAL_PAYMENT_DETAILS.hbl.iban)}</div>
+            <div class="mp-manual-pay-row"><span>Branch</span><strong>${MANUAL_PAYMENT_DETAILS.hbl.branchName}</strong></div>
+          </div>
+        </section>
+
+        <section class="mp-payment-account" aria-label="Mobile payment accounts">
+          <div class="mp-payment-account-head">
+            <span class="mp-payment-account-title">Mobile Payments</span>
+            <span class="mp-payment-account-badge">3 Options</span>
+          </div>
+          <div class="mp-payment-account-body">
+            <div class="mp-wallet-row">
+              <div class="mp-wallet-info"><span class="mp-wallet-name">JazzCash</span><span class="mp-wallet-owner">${MANUAL_PAYMENT_DETAILS.accountName}</span></div>
+              ${mpCopyButton(MANUAL_PAYMENT_DETAILS.jazzcash)}
+            </div>
+            <div class="mp-wallet-row">
+              <div class="mp-wallet-info"><span class="mp-wallet-name">Easypaisa</span><span class="mp-wallet-owner">${MANUAL_PAYMENT_DETAILS.accountName}</span></div>
+              ${mpCopyButton(MANUAL_PAYMENT_DETAILS.easypaisa)}
+            </div>
+            <div class="mp-wallet-row">
+              <div class="mp-wallet-info"><span class="mp-wallet-name">SadaPay</span><span class="mp-wallet-owner">${MANUAL_PAYMENT_DETAILS.accountName}</span></div>
+              ${mpCopyButton(MANUAL_PAYMENT_DETAILS.sadapay)}
+            </div>
+          </div>
+        </section>
       </div>
       <div class="mp-manual-pay-ref">Order reference: <strong>${orderRef}</strong> — include this when you message us.</div>
-      <a class="btn btn-coral btn-lg" style="width:100%; justify-content:center; margin-top:16px; gap:10px;" href="${waLink}" target="_blank" rel="noopener noreferrer" aria-label="Send payment screenshot on WhatsApp">
-        <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true" focusable="false" style="display:block;">
-          <path fill="currentColor" d="M19.11 17.23c-.27-.14-1.58-.78-1.82-.87-.24-.09-.42-.14-.6.14-.18.27-.69.87-.84 1.05-.15.18-.31.2-.58.07-.27-.14-1.13-.42-2.15-1.33-.79-.7-1.33-1.56-1.49-1.83-.16-.27-.02-.42.12-.56.12-.12.27-.31.4-.47.13-.16.18-.27.27-.45.09-.18.04-.34-.02-.47-.07-.14-.6-1.45-.82-1.98-.22-.52-.44-.45-.6-.46h-.51c-.18 0-.47.07-.71.34-.24.27-.93.91-.93 2.22s.96 2.58 1.09 2.76c.13.18 1.89 2.89 4.58 4.05.64.28 1.14.45 1.53.58.64.2 1.22.17 1.68.1.51-.08 1.58-.65 1.8-1.28.22-.63.22-1.17.16-1.28-.07-.11-.24-.18-.51-.31z"/>
-          <path fill="currentColor" d="M16.02 3.2c-7.07 0-12.82 5.75-12.82 12.82 0 2.26.59 4.47 1.72 6.42L3.1 28.8l6.5-1.71a12.77 12.77 0 0 0 6.42 1.74h.01c7.06 0 12.81-5.75 12.81-12.82S23.08 3.2 16.02 3.2zm0 23.36h-.01c-2.01 0-3.98-.54-5.69-1.56l-.41-.24-3.86 1.01 1.03-3.76-.27-.39a10.56 10.56 0 1 1 9.21 4.94z"/>
-        </svg>
-        Send payment screenshot
-      </a>
+      <div class="mp-whatsapp-action">
+        <a class="btn btn-lg mp-whatsapp-btn" style="width:100%; justify-content:center; margin-top:0; gap:10px;" href="${waLink}" target="_blank" rel="noopener noreferrer" aria-label="Send payment screenshot on WhatsApp">
+          <svg width="23" height="23" viewBox="0 0 32 32" aria-hidden="true" focusable="false" style="display:block;">
+            <path fill="currentColor" d="M19.11 17.23c-.27-.14-1.58-.78-1.82-.87-.24-.09-.42-.14-.6.14-.18.27-.69.87-.84 1.05-.15.18-.31.2-.58.07-.27-.14-1.13-.42-2.15-1.33-.79-.7-1.33-1.56-1.49-1.83-.16-.27-.02-.42.12-.56.12-.12.27-.31.4-.47.13-.16.18-.27.27-.45.09-.18.04-.34-.02-.47-.07-.14-.6-1.45-.82-1.98-.22-.52-.44-.45-.6-.46h-.51c-.18 0-.47.07-.71.34-.24.27-.93.91-.93 2.22s.96 2.58 1.09 2.76c.13.18 1.89 2.89 4.58 4.05.64.28 1.14.45 1.53.58.64.2 1.22.17 1.68.1.51-.08 1.58-.65 1.8-1.28.22-.63.22-1.17.16-1.28-.07-.11-.24-.18-.51-.31z"/>
+            <path fill="currentColor" d="M16.02 3.2c-7.07 0-12.82 5.75-12.82 12.82 0 2.26.59 4.47 1.72 6.42L3.1 28.8l6.5-1.71a12.77 12.77 0 0 0 6.42 1.74h.01c7.06 0 12.81-5.75 12.81-12.82S23.08 3.2 16.02 3.2zm0 23.36h-.01c-2.01 0-3.98-.54-5.69-1.56l-.41-.24-3.86 1.01 1.03-3.76-.27-.39a10.56 10.56 0 1 1 9.21 4.94z"/>
+          </svg>
+          Send payment screenshot on WhatsApp
+        </a>
+      </div>
       <button class="btn btn-ghost btn-lg" style="width:100%; justify-content:center; margin-top:10px;" onclick="closeManualPaymentModal()">I'll do this later</button>
     `;
     overlay.classList.add('open');
