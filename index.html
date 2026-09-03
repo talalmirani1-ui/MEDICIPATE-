@@ -888,6 +888,32 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
   .timer-modes{display:flex; gap:8px; justify-content:center; margin-top:20px;}
 
   /* calculator */
+  /* ---- ROUNDS ---- */
+  .rounds-shell{background:#fff; border-radius:14px; border:1px solid rgba(11,30,61,0.08); padding:22px;}
+  .rounds-patient-row{display:flex; gap:16px; margin-bottom:18px;}
+  .rounds-patient-row .calc-field{flex:1; margin-bottom:0;}
+  .rounds-panels{display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:20px;}
+  .rounds-panel{border:1px solid rgba(11,30,61,0.1); border-radius:10px; display:flex; flex-direction:column; min-height:280px;}
+  .rounds-panel-head{padding:12px 15px; border-bottom:1px solid rgba(11,30,61,0.08); display:flex; align-items:center; justify-content:space-between;}
+  .rounds-panel-head h4{font-size:0.9rem; font-weight:600; color:var(--navy-deep);}
+  .rounds-note-actions{display:flex; gap:6px;}
+  .rounds-panel-body{padding:14px 15px; flex:1; display:flex; flex-direction:column;}
+  #roundsTranscript{flex:1; width:100%; resize:none; border:none; background:transparent; font-family:'Inter',sans-serif; font-size:0.9rem; line-height:1.7; color:var(--navy-deep);}
+  #roundsTranscript:focus{outline:none;}
+  .rounds-note-output{flex:1; font-size:0.9rem; line-height:1.75; white-space:pre-wrap; overflow-y:auto; color:var(--navy-deep);}
+  .rounds-note-output b{font-family:'Space Grotesk',sans-serif; font-weight:600; display:block; margin-top:12px; font-size:0.86rem; color:var(--navy-deep);}
+  .rounds-note-output b:first-child{margin-top:0;}
+  .rounds-empty{color:var(--slate); font-size:0.88rem;}
+  .rounds-actions{display:flex; justify-content:center; gap:12px;}
+  .rounds-recording{background:var(--coral) !important; color:var(--off) !important;}
+  .rounds-dot{width:8px; height:8px; border-radius:50%; background:var(--coral); display:inline-block; margin-right:7px; animation:roundsBlink 1.1s infinite;}
+  @keyframes roundsBlink{ 50%{ opacity:0.25; } }
+  .rounds-notice{font-size:0.82rem; color:var(--navy-deep); background:rgba(232,84,62,0.08); padding:12px 16px; margin-top:16px; border-radius:8px;}
+  @media (max-width:700px){
+    .rounds-panels{grid-template-columns:1fr;}
+    .rounds-patient-row{flex-direction:column;}
+  }
+
   .calc-card{background:#fff; border-radius:14px; padding:24px; border:1px solid rgba(11,30,61,0.08); max-width:440px;}
   .calc-field{margin-bottom:12px;}
   .calc-field label{font-size:0.78rem; font-weight:600; color:var(--navy-deep); display:block; margin-bottom:5px;}
@@ -1206,6 +1232,7 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -1943,6 +1970,7 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
     }catch(e){}
     if(window.location.hash === '#about-us') mpShowPage('about-us', true);
     else if(window.location.hash === '#payment-info') mpShowPage('payment-info', true);
+    else if(window.location.hash === '#privacy-policy') openMpPolicy('privacy');
   });
   window.addEventListener('popstate', function(e){
     if(mpHandlingPopstate) return;
@@ -2407,7 +2435,8 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
       { group:'Tools', items:[
         { id:'tools', label:'Medical Tools', icon:'stethoscope' },
         { id:'calculators', label:'Clinical Calculators', icon:'calc' },
-        { id:'timer', label:'Study Timer', icon:'timer' }
+        { id:'timer', label:'Study Timer', icon:'timer' },
+        { id:'rounds', label:'Rounds — AI Notes', icon:'notes' }
       ]},
       { group:'Premium', items:[
         { id:'upgrade', label:'MEDICIPATE Pro', icon:'star' },
@@ -2539,7 +2568,7 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
     overview:'Dashboard', qbank:'Question Bank', nomes:'NOMES', library:'Library', flashcards:'Flash Cards', studyhacks:'Study Hacks',
     mocks:'Mock Exams', pakistan:'MBBS Pakistan', performance:'My Performance', weakareas:'Weak Areas',
     bookmarks:'Bookmarks', history:'History', tools:'Medical Tools', calculators:'Clinical Calculators',
-    timer:'Study Timer', upgrade:'MEDICIPATE Pro', profile:'Profile'
+    timer:'Study Timer', rounds:'Rounds — AI Notes', upgrade:'MEDICIPATE Pro', profile:'Profile'
   };
 
   async function showSection(id, fromHistory){
@@ -2558,6 +2587,7 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
     content.innerHTML = renderSection(id);
     if(id === 'nomes') bindNomesSetup();
     if(id === 'flashcards') initFlashcardsFrame();
+    if(id === 'rounds') initRoundsUI();
     window.scrollTo({top:0, behavior:'auto'});
   }
 
@@ -2578,6 +2608,7 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
       case 'tools': return renderTools();
       case 'calculators': return renderCalculators();
       case 'timer': return renderTimer();
+      case 'rounds': return renderRounds();
       case 'upgrade': return renderUpgradePage();
       case 'profile': return renderProfile();
       default: return renderOverview();
@@ -3389,6 +3420,235 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
         ${!isPro() ? lockedCard('<div class="dc-icon" style="background:rgba(11,30,61,0.08); color:var(--navy);">📐</div><h4>Advanced Nomograms</h4><p>Bedside reference charts for rapid clinical calculation.</p>') : `<div class="dash-card"><div class="dc-icon" style="background:rgba(11,30,61,0.08); color:var(--navy);">📐</div><h4>Advanced Nomograms</h4><p>Bedside reference charts for rapid clinical calculation.</p></div>`}
       </div>
     `;
+  }
+
+  /* ---- ROUNDS — AI clinical note assistant ---- */
+  function renderRounds(){
+    return `
+      <div class="dash-head"><h2>Rounds — AI Notes</h2><p>Turn a consult into a structured SOAP note. Demo tool — don't enter real patient data.</p></div>
+      <div class="rounds-shell">
+        <div class="rounds-patient-row">
+          <div class="calc-field"><label>Patient name (or initials)</label><input type="text" id="roundsPname" placeholder="e.g. R.K."></div>
+          <div class="calc-field"><label>Visit date</label><input type="date" id="roundsPdate"></div>
+        </div>
+        <div class="rounds-panels">
+          <div class="rounds-panel">
+            <div class="rounds-panel-head">
+              <h4>Consult transcript</h4>
+              <span id="roundsRecIndicator" style="font-size:0.76rem; color:var(--slate); display:none;"><span class="rounds-dot"></span>Recording</span>
+            </div>
+            <div class="rounds-panel-body">
+              <textarea id="roundsTranscript" placeholder="Tap “Start recording” and speak, or type/paste a sample consult here..."></textarea>
+            </div>
+          </div>
+          <div class="rounds-panel">
+            <div class="rounds-panel-head">
+              <h4>Clinical note</h4>
+              <div class="rounds-note-actions" id="roundsNoteActions" style="display:none;">
+                <button class="btn btn-ghost" id="roundsCopyBtn" style="border-color:rgba(11,30,61,0.2); color:var(--navy-deep); padding:5px 12px; font-size:0.8rem;" onclick="roundsCopyNote()">Copy</button>
+                <button class="btn btn-ghost" style="border-color:rgba(11,30,61,0.2); color:var(--navy-deep); padding:5px 12px; font-size:0.8rem;" onclick="roundsDownloadImage('png')">PNG</button>
+                <button class="btn btn-ghost" style="border-color:rgba(11,30,61,0.2); color:var(--navy-deep); padding:5px 12px; font-size:0.8rem;" onclick="roundsDownloadImage('jpg')">JPG</button>
+              </div>
+            </div>
+            <div class="rounds-panel-body">
+              <div class="rounds-note-output" id="roundsNoteOutput"><span class="rounds-empty">Your structured SOAP note will appear here once generated.</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="rounds-actions">
+          <button class="btn btn-solid" id="roundsRecordBtn" onclick="roundsToggleRecording()">Start recording</button>
+          <button class="btn btn-coral" id="roundsGenerateBtn" onclick="roundsGenerateNote()">Generate note</button>
+        </div>
+        <div class="rounds-notice" id="roundsSpeechNotice" style="display:none;">
+          Live voice transcription isn't supported in this browser — type or paste the consult text instead, then generate the note.
+        </div>
+      </div>
+    `;
+  }
+
+  let roundsRecognition = null;
+  let roundsIsRecording = false;
+
+  function initRoundsUI(){
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const notice = document.getElementById('roundsSpeechNotice');
+    const recordBtn = document.getElementById('roundsRecordBtn');
+    if(!SpeechRecognition){
+      if(notice) notice.style.display = 'block';
+      if(recordBtn) recordBtn.disabled = true;
+      return;
+    }
+    if(roundsRecognition) return; // already set up for this page load
+    roundsRecognition = new SpeechRecognition();
+    roundsRecognition.continuous = true;
+    roundsRecognition.interimResults = true;
+    roundsRecognition.lang = 'en-US';
+
+    roundsRecognition.onresult = (event) => {
+      const transcriptEl = document.getElementById('roundsTranscript');
+      if(!transcriptEl) return;
+      let interim = '';
+      let finalChunk = '';
+      for(let i = event.resultIndex; i < event.results.length; i++){
+        const chunk = event.results[i][0].transcript;
+        if(event.results[i].isFinal){ finalChunk += chunk + ' '; }
+        else{ interim += chunk; }
+      }
+      if(finalChunk) transcriptEl.value = (transcriptEl.value + ' ' + finalChunk).trim() + ' ';
+      transcriptEl.dataset.interim = interim;
+      transcriptEl.value = transcriptEl.value.replace(/\s*$/, ' ') + interim;
+    };
+    roundsRecognition.onerror = () => { roundsStopRecording(); };
+    roundsRecognition.onend = () => { if(roundsIsRecording) roundsRecognition.start(); };
+  }
+
+  function roundsToggleRecording(){
+    if(roundsIsRecording) roundsStopRecording(); else roundsStartRecording();
+  }
+  function roundsStartRecording(){
+    if(!roundsRecognition) return;
+    roundsIsRecording = true;
+    roundsRecognition.start();
+    const btn = document.getElementById('roundsRecordBtn');
+    const ind = document.getElementById('roundsRecIndicator');
+    if(btn){ btn.textContent = 'Stop recording'; btn.classList.add('rounds-recording'); }
+    if(ind) ind.style.display = 'inline-flex';
+  }
+  function roundsStopRecording(){
+    if(!roundsRecognition) return;
+    roundsIsRecording = false;
+    roundsRecognition.stop();
+    const btn = document.getElementById('roundsRecordBtn');
+    const ind = document.getElementById('roundsRecIndicator');
+    if(btn){ btn.textContent = 'Start recording'; btn.classList.remove('rounds-recording'); }
+    if(ind) ind.style.display = 'none';
+  }
+
+  function roundsRenderNote(text){
+    const withBreaks = text
+      .replace(/\*\*(Subjective|Objective|Assessment|Plan)\*\*:?/gi, '<b>$1</b>')
+      .replace(/^(Subjective|Objective|Assessment|Plan):?$/gim, '<b>$1</b>');
+    document.getElementById('roundsNoteOutput').innerHTML = withBreaks;
+  }
+
+  async function roundsGenerateNote(){
+    const transcriptEl = document.getElementById('roundsTranscript');
+    const noteOutput = document.getElementById('roundsNoteOutput');
+    const generateBtn = document.getElementById('roundsGenerateBtn');
+    const noteActions = document.getElementById('roundsNoteActions');
+    const transcript = (transcriptEl.value || '').trim();
+    if(!transcript){
+      noteOutput.innerHTML = '<span class="rounds-empty">Add a transcript first — record or type the consult, then generate.</span>';
+      return;
+    }
+    generateBtn.disabled = true;
+    generateBtn.textContent = 'Generating…';
+    noteOutput.innerHTML = '<span class="rounds-empty">Structuring the note…</span>';
+    try{
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 1000,
+          messages: [
+            {
+              role: "user",
+              content: "You are helping a doctor turn a consult transcript into a clinical note. Convert the following transcript into a concise SOAP note (Subjective, Objective, Assessment, Plan). Use only information present in the transcript — do not invent findings. If a section has no relevant information, write \"Not documented\" for that section. Format each section header in bold on its own line, followed by the content. Output only the note, nothing else.\n\nTranscript:\n" + transcript
+            }
+          ]
+        })
+      });
+      const data = await response.json();
+      const text = (data.content || []).map(item => item.type === 'text' ? item.text : '').filter(Boolean).join('\n');
+      roundsRenderNote(text);
+      if(noteActions) noteActions.style.display = 'flex';
+    }catch(err){
+      noteOutput.innerHTML = '<span class="rounds-empty">Something went wrong generating the note. Please try again.</span>';
+      console.error('Rounds note generation error:', err);
+    }finally{
+      generateBtn.disabled = false;
+      generateBtn.textContent = 'Generate note';
+    }
+  }
+
+  function roundsCopyNote(){
+    const noteOutput = document.getElementById('roundsNoteOutput');
+    const copyBtn = document.getElementById('roundsCopyBtn');
+    navigator.clipboard.writeText(noteOutput.innerText).then(() => {
+      copyBtn.textContent = 'Copied';
+      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+    });
+  }
+
+  function roundsBuildExportCard(){
+    const noteOutput = document.getElementById('roundsNoteOutput');
+    const pname = (document.getElementById('roundsPname').value || '').trim();
+    const pdate = document.getElementById('roundsPdate').value || '';
+    const dateLabel = pdate ? new Date(pdate + 'T00:00:00').toLocaleDateString(undefined, {year:'numeric', month:'long', day:'numeric'}) : '';
+    const generatedLabel = new Date().toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'});
+
+    const card = document.createElement('div');
+    card.id = 'roundsExportCard';
+    card.style.cssText = 'position:fixed; left:-9999px; top:0; width:640px; background:#ffffff; font-family:Inter,sans-serif; padding:40px; box-sizing:border-box; border-radius:0;';
+    card.innerHTML = `
+      <div style="display:flex; align-items:center; justify-content:space-between; border-bottom:2px solid #0B1E3D; padding-bottom:18px; margin-bottom:24px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:30px; height:30px; border-radius:8px; background:#12A39A; display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px;">R</div>
+          <span style="font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:19px; color:#0B1E3D;">Rounds</span>
+        </div>
+        <span style="font-size:12px; color:#64748B; letter-spacing:0.03em; text-transform:uppercase;">Clinical Note</span>
+      </div>
+      <div style="display:flex; gap:36px; margin-bottom:26px;">
+        <div>
+          <div style="font-size:11px; color:#64748B; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:3px;">Patient</div>
+          <div style="font-size:15px; font-weight:600; color:#0B1E3D;">${pname ? pname.replace(/</g,'&lt;') : '—'}</div>
+        </div>
+        <div>
+          <div style="font-size:11px; color:#64748B; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:3px;">Visit date</div>
+          <div style="font-size:15px; font-weight:600; color:#0B1E3D;">${dateLabel || '—'}</div>
+        </div>
+      </div>
+      <div id="roundsExportNoteBody" style="font-size:14px; line-height:1.8; color:#0B1E3D;"></div>
+      <div style="margin-top:32px; padding-top:16px; border-top:1px solid rgba(11,30,61,0.12); display:flex; justify-content:space-between; font-size:11px; color:#94A3B8;">
+        <span>Generated with Rounds — AI-assisted, doctor-reviewed</span>
+        <span>${generatedLabel}</span>
+      </div>
+    `;
+    const noteBody = card.querySelector('#roundsExportNoteBody');
+    noteBody.innerHTML = noteOutput.innerHTML;
+    noteBody.querySelectorAll('b').forEach(b => {
+      b.style.cssText = 'display:block; font-family:"Space Grotesk",sans-serif; font-weight:700; font-size:13px; color:#12A39A; text-transform:uppercase; letter-spacing:0.03em; margin-top:16px; margin-bottom:4px;';
+    });
+    document.body.appendChild(card);
+    return card;
+  }
+
+  async function roundsDownloadImage(format){
+    const noteOutput = document.getElementById('roundsNoteOutput');
+    if(!noteOutput || noteOutput.querySelector('.rounds-empty')){
+      return;
+    }
+    if(typeof html2canvas === 'undefined'){
+      console.error('html2canvas not loaded');
+      return;
+    }
+    const card = roundsBuildExportCard();
+    try{
+      const canvas = await html2canvas(card, {scale:2, backgroundColor:'#ffffff'});
+      const mime = format === 'jpg' ? 'image/jpeg' : 'image/png';
+      const ext = format === 'jpg' ? 'jpg' : 'png';
+      const dataUrl = canvas.toDataURL(mime, 0.95);
+      const link = document.createElement('a');
+      const pname = (document.getElementById('roundsPname').value || 'note').trim().replace(/[^a-z0-9]/gi, '-').toLowerCase() || 'note';
+      link.download = `rounds-${pname}.${ext}`;
+      link.href = dataUrl;
+      link.click();
+    }catch(err){
+      console.error('Rounds image export error:', err);
+    }finally{
+      card.remove();
+    }
   }
 
   /* ---- CALCULATORS (CrCl functional demo) ---- */
