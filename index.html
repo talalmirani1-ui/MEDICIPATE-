@@ -5751,10 +5751,10 @@ if ('serviceWorker' in navigator) {
 
   function esc(v){return String(v ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
   function toast(msg){try{if(typeof showToast==='function') showToast(msg); else alert(msg);}catch(e){alert(msg)}}
-  function currentUid(){return window.currentUser?.id || null;}
+  function currentUid(){return currentUser?.id || null;}
 
   async function isAdmin(){
-    if(!window.supabaseClient || !currentUid()) return false;
+    if(!supabaseClient || !currentUid()) return false;
     try{
       const {data,error}=await supabaseClient.from(ADMIN_TABLE).select('user_id').eq('user_id',currentUid()).maybeSingle();
       if(error){console.warn('MEDICIPATE admin check:',error.message); return false;}
@@ -5893,7 +5893,7 @@ if ('serviceWorker' in navigator) {
   async function signedUrl(path){if(!path)return null;const {data,error}=await supabaseClient.storage.from(STORAGE_BUCKET).createSignedUrl(path,3600);if(error)throw error;return data?.signedUrl||null;}
   async function mpOpenMaterial(id){
     const {data,error}=await supabaseClient.from(MATERIAL_TABLE).select('*').eq('id',id).single(); if(error||!data){toast('Material unavailable.');return;}
-    if(data.access_level==='premium' && !window.currentUser?.isPro){toast('This material is available with MEDICIPATE Pro.');return;}
+    if(data.access_level==='premium' && !currentUser?.isPro){toast('This material is available with MEDICIPATE Pro.');return;}
     let url=data.external_url||null; try{if(data.file_path)url=await signedUrl(data.file_path)}catch(e){toast('Could not open file.');return;}
     const modal=document.getElementById('mpMaterialModal')||createMaterialModal(); const title=document.getElementById('mpMaterialModalTitle');const view=document.getElementById('mpMaterialModalView');title.textContent=data.title||'Study Material';
     const type=data.material_type; if(type==='image'){view.innerHTML='<img src="'+esc(url)+'" alt="'+esc(data.title)+'">'} else if(type==='video'){const y=ytEmbed(url||'');view.innerHTML=y?'<iframe src="'+esc(y)+'" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>':'<video controls src="'+esc(url||'')+'"></video>'} else if(type==='pdf'){view.innerHTML='<iframe src="'+esc(url||'')+'" title="'+esc(data.title)+'"></iframe>'} else {view.innerHTML='<p class="mp-admin-muted">This resource is ready.</p><a class="btn btn-coral" href="'+esc(url||'#')+'" target="_blank" rel="noopener">Open / Download</a>'}
@@ -5903,10 +5903,10 @@ if ('serviceWorker' in navigator) {
   function mpCloseMaterial(){const m=document.getElementById('mpMaterialModal');if(m)m.classList.remove('open');document.body.style.overflow='';}
 
   async function loadDynamicLibrary(){
-    const box=document.getElementById('mpDynamicLibrary'); if(!box||!window.supabaseClient)return;
+    const box=document.getElementById('mpDynamicLibrary'); if(!box||!supabaseClient)return;
     const {data,error}=await supabaseClient.from(MATERIAL_TABLE).select('id,title,description,material_type,thumbnail_url,external_url,file_path,exam,subject,topic,year,access_level,created_at,status').eq('status','published').order('created_at',{ascending:false});
     if(error){box.innerHTML='';console.warn('Dynamic Library:',error.message);return;}
-    const visible=(data||[]).filter(m=>m.access_level==='free'||window.currentUser?.isPro);
+    const visible=(data||[]).filter(m=>m.access_level==='free'||currentUser?.isPro);
     if(!visible.length){box.innerHTML='<div class="mp-admin-muted" style="margin-top:14px">No additional uploaded study material is available for your plan yet.</div>';return;}
     box.innerHTML='<div class="mp-admin-library-grid">'+visible.map(m=>{const icon=m.material_type==='pdf'?'📄':m.material_type==='video'?'🎥':m.material_type==='image'?'🖼️':'📦';const cover=m.thumbnail_url?'<img src="'+esc(m.thumbnail_url)+'" alt="">': '<span>'+icon+'</span>';return '<article class="mp-material-card"><div class="mp-material-cover">'+cover+'</div><div class="mp-material-body"><h4>'+esc(m.title)+'</h4><p>'+esc(m.description||'Study material')+'</p><div class="mp-material-meta">'+esc(m.exam||'')+(m.subject?' · '+esc(m.subject):'')+(m.topic?' · '+esc(m.topic):'')+'</div><button class="btn btn-coral" onclick="window.mpOpenMaterial(\''+m.id+'\')">Open</button></div></article>'}).join('')+'</div>';
   }
@@ -5923,7 +5923,7 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load',async function(){
     patchLibrary();
     setTimeout(updateAdminNav,700);
-    if(window.supabaseClient?.auth){supabaseClient.auth.onAuthStateChange(function(){setTimeout(updateAdminNav,500);});}
+    if(supabaseClient?.auth){supabaseClient.auth.onAuthStateChange(function(){setTimeout(updateAdminNav,500);});}
   });
   const oldShowSection=window.showSection;
   if(typeof oldShowSection==='function'){
