@@ -4202,6 +4202,11 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
       openModal('login');
       return;
     }
+    if(CONFIG.paymentsLive && !currentUser.phone){
+      showToast('Please add your phone number in your profile before checkout.');
+      showSection('profile');
+      return;
+    }
 
     if(!CONFIG.paymentsLive){
       openManualPaymentModal(cycle);
@@ -4228,7 +4233,7 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
         },
         body: JSON.stringify({
           planId: cycle,
-          customer: { name: currentUser.name, email: currentUser.email }
+          customer: { name: currentUser.name, email: currentUser.email, phone: currentUser.phone }
         })
       });
       const data = await response.json().catch(() => ({}));
