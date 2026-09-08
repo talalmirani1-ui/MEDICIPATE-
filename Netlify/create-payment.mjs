@@ -283,8 +283,8 @@ export default async function handler(req) {
       CUSTOMER_MOBILE_NO: customerPhone || FALLBACK_MOBILE_NO,
       CUSTOMER_EMAIL_ADDRESS: supabaseUser.email,
       BASKET_ID: orderId,
-      SUCCESS_URL: `${origin}/payment-success.html?orderId=${encodeURIComponent(orderId)}`,
-      FAILURE_URL: `${origin}/payment-failed.html?orderId=${encodeURIComponent(orderId)}`,
+      SUCCESS_URL: `${origin}/?rg_return=1&orderId=${encodeURIComponent(orderId)}`,
+      FAILURE_URL: `${origin}/?rg_return=1&orderId=${encodeURIComponent(orderId)}`,
       CHECKOUT_URL: `${origin}/.netlify/functions/rapid-webhook`,
       VERSION: 'MY_VER_1.0',
       PROCCODE: '0'
