@@ -1,98 +1,147 @@
-// create-payment.js
-// Runs quietly on Netlify's server — never in the customer's browser.
-// Matches what the MEDICIPATE checkout (index.html -> choosePlan()) sends and expects.
+// Netlify Function — Rapid Gateway payment checkout
 
 const PRICING = {
-  monthly:   { amount: 499,  label: 'Monthly' },
+  monthly:  { amount: 499,  label: 'Monthly' },
   sixMonths: { amount: 2550, label: '6 Months' },
-  yearly:    { amount: 4800, label: 'Yearly' },
+  yearly:   { amount: 4800, label: 'Yearly' }
 };
 
 export default async (req) => {
   try {
+    if (req.method !== 'POST') {
+      return json({ error: 'Method not allowed' }, 405);
+    }
+
     const { planId, customer } = await req.json();
 
     const plan = PRICING[planId];
+
     if (!plan) {
       return json({ error: 'Invalid plan selected.' }, 400);
     }
-    if (!customer || !customer.email) {
-      return json({ error: 'Missing customer details.' }, 400);
+
+    if (!customer?.email) {
+      return json({ error: 'Missing customer email.' }, 400);
     }
 
-    const CLIENT_ID = process.env.RAPIDGATEWAY_CLIENT_ID;
-    const CLIENT_SECRET = process.env.RAPIDGATEWAY_CLIENT_SECRET;
-    const MERCHANT_ID = process.env.RAPIDGATEWAY_MERCHANT_ID;
+    const secretKey = process.env.RG_SECRET_KEY;
 
-    if (!CLIENT_ID || !CLIENT_SECRET || !MERCHANT_ID) {
-      return json({ error: 'Server is not configured with Rapid Gateway credentials yet.' }, 500);
+    if (!secretKey) {
+      return json(
+        { error: 'Rapid Gateway secret key is not configured.' },
+        500
+      );
     }
 
-    // Step 1 — Get a Bearer token
-    const basicAuth = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64');
+    // Unique order ID for this checkout
+    const orderId =
+      'MEDICIPATE-' +
+      Date.now().toString(36).toUpperCase() +
+      '-' +
+      crypto.randomUUID().slice(0, 8).toUpperCase();
 
-    const tokenRes = await fetch('https://secure.rapid-gateway.com/oauth/token', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Basic ${basicAuth}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: 'grant_type=client_credentials',
-    });
-
-    if (!tokenRes.ok) {
-      const errText = await tokenRes.text();
-      return json({ error: 'Could not get token from Rapid Gateway.', details: errText }, 502);
-    }
-
-    const { access_token: bearerToken } = await tokenRes.json();
-
-    // Step 2 — Create the payment / order
-    const orderId = 'MP-' + Date.now();
     const origin = new URL(req.url).origin;
 
-    const params = new URLSearchParams({
-      merchantId: MERCHANT_ID,
-      merchantTransactionId: orderId,
-      amount: String(plan.amount),
-      currency: 'PKR',
-      description: `MEDICIPATE Premium — ${plan.label}`,
-      customerName: customer.name || '',
-      customerEmail: customer.email,
-      successUrl: `${origin}/payment-success.html`,
-      cancelUrl: `${origin}/payment-cancelled.html`,
-    });
+    const paymentResponse = await fetch(
+      'https://api.rapidgateway.pk/v1/payments',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${secretKey}`,
+          'Content-Type': 'application/json',
+          'Idempotency-Key': orderId
+        },
+        body: JSON.stringify({
+          amount: plan.amount,
+          currency: 'PKR',
 
-    const txnRes = await fetch('https://secure.rapid-gateway.com/v1/payments', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${bearerToken}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: params.toString(),
-    });
+          methods: [
+            'easypaisa',
+            'jazzcash',
+            'card',
+            'raast'
+          ],
 
-    const txnData = await txnRes.json();
+          customer: {
+            email: customer.email,
+            ...(customer.name ? { name: customer.name } : {})
+          },
 
-    if (!txnRes.ok) {
-      return json({ error: 'Could not start the payment.', details: txnData }, 502);
+          return_url:
+            `${origin}/payment-success.html?orderId=${encodeURIComponent(orderId)}`,
+
+          webhook_url:
+            `${origin}/.netlify/functions/rapid-webhook`
+        })
+      }
+    );
+
+    const responseText = await paymentResponse.text();
+
+    let paymentData = {};
+
+    try {
+      paymentData = JSON.parse(responseText);
+    } catch {
+      paymentData = { raw: responseText };
     }
 
-    const checkoutUrl = txnData.checkoutUrl || txnData.checkout_url || txnData.redirect_url;
+    if (!paymentResponse.ok) {
+      console.error('Rapid Gateway error:', paymentData);
+
+      return json(
+        {
+          error: 'Rapid Gateway could not create the payment.',
+          details: paymentData
+        },
+        502
+      );
+    }
+
+    const checkoutUrl =
+      paymentData.checkout_url ||
+      paymentData.checkoutUrl ||
+      paymentData.redirect_url ||
+      paymentData.redirectUrl;
+
     if (!checkoutUrl) {
-      return json({ error: 'Rapid Gateway did not return a checkout link.', details: txnData }, 502);
+      console.error(
+        'Rapid Gateway response did not contain checkout URL:',
+        paymentData
+      );
+
+      return json(
+        {
+          error: 'Rapid Gateway did not return a checkout link.',
+          details: paymentData
+        },
+        502
+      );
     }
 
-    return json({ checkout_url: checkoutUrl, orderId });
+    return json({
+      checkout_url: checkoutUrl,
+      orderId
+    });
 
-  } catch (err) {
-    return json({ error: 'Unexpected server error.', details: String(err) }, 500);
+  } catch (error) {
+    console.error('create-payment error:', error);
+
+    return json(
+      {
+        error: 'Unexpected server error.',
+        details: String(error)
+      },
+      500
+    );
   }
 };
 
-function json(obj, status = 200) {
-  return new Response(JSON.stringify(obj), {
+function json(body, status = 200) {
+  return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json'
+    }
   });
 }
