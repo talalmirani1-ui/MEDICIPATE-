@@ -3952,6 +3952,16 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
           align-items:center;
           justify-content:flex-start;
           position:relative;
+          transition:transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+        }
+        .mp-plan-card:hover{
+          transform:translateY(-4px);
+          border-color:#3a4d6e;
+          box-shadow:0 10px 28px rgba(0,0,0,.35);
+        }
+        .mp-plan-card.best:hover{
+          border-color:#ff9f1a;
+          box-shadow:0 0 0 2px rgba(255,159,26,.08), 0 14px 32px rgba(255,159,26,.18);
         }
         .mp-plan-card.best{
           border-color:#ff9f1a;
@@ -4017,6 +4027,33 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
           flex:0 0 14px;
         }
         @keyframes mpSpin{to{transform:rotate(360deg);}}
+        .mp-checkout-overlay{
+          position:fixed; inset:0; z-index:9999;
+          background:rgba(7,20,41,.86);
+          backdrop-filter:blur(3px);
+          display:flex; align-items:center; justify-content:center;
+          opacity:0; pointer-events:none;
+          transition:opacity .2s ease;
+        }
+        .mp-checkout-overlay.show{opacity:1; pointer-events:auto;}
+        .mp-checkout-overlay-box{
+          background:#0b1422;
+          border:1px solid #22314a;
+          border-radius:18px;
+          padding:32px 36px;
+          text-align:center;
+          max-width:320px;
+          box-shadow:0 20px 50px rgba(0,0,0,.45);
+        }
+        .mp-checkout-overlay-spinner{
+          width:38px;height:38px;margin:0 auto 16px;
+          border-radius:50%;
+          border:3px solid rgba(255,159,26,.25);
+          border-top-color:#ff9f1a;
+          animation:mpSpin .8s linear infinite;
+        }
+        .mp-checkout-overlay-title{color:#f3f5f2;font-weight:700;font-family:'Space Grotesk',sans-serif;margin-bottom:6px;}
+        .mp-checkout-overlay-sub{color:#9aa9c2;font-size:.85rem;line-height:1.5;}
         .mp-comparison{
           position:relative;
           border:2px solid #22314a;
@@ -4229,7 +4266,7 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
       btn.classList.add('loading');
       btn.innerHTML = '<span class="mp-btn-spinner" aria-hidden="true"></span><span>Preparing checkout…</span>';
     }
-    showToast('Creating secure Rapid Gateway checkout…');
+    showCheckoutOverlay('Connecting to Rapid Gateway', 'Setting up your secure payment session…');
 
     function resetButtons(){
       buttons.forEach(b => {
@@ -4237,6 +4274,7 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
         b.classList.remove('loading');
         b.innerHTML = originalLabels.get(b);
       });
+      hideCheckoutOverlay();
     }
 
     try {
@@ -4263,13 +4301,39 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
         throw new Error(data.error || 'Unable to create the payment checkout.');
       }
       sessionStorage.setItem('medicipatePendingOrder', data.orderId);
-      if(btn){ btn.innerHTML = '<span class="mp-btn-spinner" aria-hidden="true"></span><span>Redirecting to Rapid Gateway…</span>'; }
+      if(btn){ btn.innerHTML = '<span class="mp-btn-spinner" aria-hidden="true"></span><span>Redirecting…</span>'; }
+      showCheckoutOverlay('Redirecting to Rapid Gateway', 'Taking you to the secure payment page now…');
       window.location.href = data.checkout_url;
     } catch(error){
       console.error(error);
       showToast(error.message || 'Payment checkout could not be started.');
       resetButtons();
     }
+  }
+
+  function ensureCheckoutOverlay(){
+    let el = document.getElementById('mpCheckoutOverlay');
+    if(el) return el;
+    el = document.createElement('div');
+    el.id = 'mpCheckoutOverlay';
+    el.className = 'mp-checkout-overlay';
+    el.innerHTML = '<div class="mp-checkout-overlay-box">' +
+      '<div class="mp-checkout-overlay-spinner" aria-hidden="true"></div>' +
+      '<div class="mp-checkout-overlay-title" id="mpCheckoutOverlayTitle">Connecting…</div>' +
+      '<div class="mp-checkout-overlay-sub" id="mpCheckoutOverlaySub"></div>' +
+      '</div>';
+    document.body.appendChild(el);
+    return el;
+  }
+  function showCheckoutOverlay(title, sub){
+    const el = ensureCheckoutOverlay();
+    document.getElementById('mpCheckoutOverlayTitle').textContent = title || 'Connecting…';
+    document.getElementById('mpCheckoutOverlaySub').textContent = sub || '';
+    el.classList.add('show');
+  }
+  function hideCheckoutOverlay(){
+    const el = document.getElementById('mpCheckoutOverlay');
+    if(el) el.classList.remove('show');
   }
 
   /* ---- Manual payment fallback (while Rapid Gateway keys are pending approval) ---- */
