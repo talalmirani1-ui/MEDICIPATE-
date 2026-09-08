@@ -4007,6 +4007,16 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
           font-size:.95rem;
         }
         .mp-plan-action:hover{filter:brightness(1.08);}
+        .mp-plan-action:disabled{cursor:not-allowed;opacity:.85;filter:none;}
+        .mp-plan-action.loading{display:inline-flex;align-items:center;justify-content:center;gap:8px;}
+        .mp-plan-action .mp-btn-spinner{
+          width:14px;height:14px;border-radius:50%;
+          border:2px solid rgba(21,21,21,.35);
+          border-top-color:#151515;
+          animation:mpSpin .7s linear infinite;
+          flex:0 0 14px;
+        }
+        @keyframes mpSpin{to{transform:rotate(360deg);}}
         .mp-comparison{
           position:relative;
           border:2px solid #22314a;
@@ -4127,7 +4137,7 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
             <div class="mp-plan-price">Rs ${p.monthly.amount.toLocaleString()}</div>
             <div class="mp-plan-unit">/month</div>
             <div class="mp-plan-note">Full Premium<br>access</div>
-            <button class="mp-plan-action" onclick="choosePlan('monthly')">Choose Monthly</button>
+            <button class="mp-plan-action" onclick="choosePlan('monthly', this)">Choose Monthly</button>
           </div>
 
           <div class="mp-plan-card">
@@ -4135,7 +4145,7 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
             <div class="mp-plan-price">Rs ${p.sixMonths.amount.toLocaleString()}</div>
             <div class="mp-plan-unit">/6 months</div>
             <div class="mp-plan-note">Rs ${Math.round(p.sixMonths.amount/6).toLocaleString()}/month</div>
-            <button class="mp-plan-action" onclick="choosePlan('sixMonths')">Choose 6 Months</button>
+            <button class="mp-plan-action" onclick="choosePlan('sixMonths', this)">Choose 6 Months</button>
           </div>
 
           <div class="mp-plan-card best">
@@ -4144,7 +4154,7 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
             <div class="mp-plan-price">Rs ${p.yearly.amount.toLocaleString()}</div>
             <div class="mp-plan-unit">/year</div>
             <div class="mp-plan-note">Rs ${Math.round(p.yearly.amount/12).toLocaleString()}/month<br>approx.</div>
-            <button class="mp-plan-action" onclick="choosePlan('yearly')">Choose Yearly</button>
+            <button class="mp-plan-action" onclick="choosePlan('yearly', this)">Choose Yearly</button>
           </div>
         </div>
 
@@ -4195,16 +4205,11 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
       </div>
     `;
   }
-  async function choosePlan(cycle){
+  async function choosePlan(cycle, clickedBtn){
     if(!CONFIG.pricing[cycle]){ showToast('Invalid plan selected.'); return; }
     if(!currentUser || !currentUser.email){
       showToast('Please log in or create your MEDICIPATE account before checkout.');
       openModal('login');
-      return;
-    }
-    if(CONFIG.paymentsLive && !currentUser.phone){
-      showToast('Please add your phone number in your profile before checkout.');
-      showSection('profile');
       return;
     }
 
@@ -4214,15 +4219,32 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
     }
 
     const buttons = document.querySelectorAll('.mp-plan-action');
-    buttons.forEach(btn => btn.disabled = true);
+    const btn = clickedBtn || event?.currentTarget || null;
+    const originalLabels = new Map();
+    buttons.forEach(b => {
+      originalLabels.set(b, b.innerHTML);
+      b.disabled = true;
+    });
+    if(btn){
+      btn.classList.add('loading');
+      btn.innerHTML = '<span class="mp-btn-spinner" aria-hidden="true"></span><span>Preparing checkout…</span>';
+    }
     showToast('Creating secure Rapid Gateway checkout…');
+
+    function resetButtons(){
+      buttons.forEach(b => {
+        b.disabled = false;
+        b.classList.remove('loading');
+        b.innerHTML = originalLabels.get(b);
+      });
+    }
 
     try {
       const { data: { session } } = await supabaseClient.auth.getSession();
       if(!session?.access_token){
         showToast('Your login session has expired. Please log in again.');
         openModal('login');
-        buttons.forEach(btn => btn.disabled = false);
+        resetButtons();
         return;
       }
       const response = await fetch('/.netlify/functions/create-payment', {
@@ -4233,20 +4255,20 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
         },
         body: JSON.stringify({
           planId: cycle,
-          customer: { name: currentUser.name, email: currentUser.email, phone: currentUser.phone }
+          customer: { name: currentUser.name, email: currentUser.email, phone: currentUser.phone || '' }
         })
       });
       const data = await response.json().catch(() => ({}));
-      alert('DEBUG status=' + response.status + ' body=' + JSON.stringify(data));
       if(!response.ok || !data.checkout_url){
         throw new Error(data.error || 'Unable to create the payment checkout.');
       }
       sessionStorage.setItem('medicipatePendingOrder', data.orderId);
+      if(btn){ btn.innerHTML = '<span class="mp-btn-spinner" aria-hidden="true"></span><span>Redirecting to Rapid Gateway…</span>'; }
       window.location.href = data.checkout_url;
     } catch(error){
       console.error(error);
       showToast(error.message || 'Payment checkout could not be started.');
-      buttons.forEach(btn => btn.disabled = false);
+      resetButtons();
     }
   }
 
