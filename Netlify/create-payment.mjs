@@ -20,6 +20,8 @@ const PRICING = {
   }
 };
 
+const FALLBACK_MOBILE_NO = '03000000000';
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -58,9 +60,11 @@ export default async function handler(req) {
       return json({ error: 'Missing customer email.' }, 400);
     }
 
-    if (!customer?.phone) {
-      return json({ error: 'Missing customer phone number.' }, 400);
-    }
+    // Phone is optional for MEDICIPATE checkout. Rapid Gateway's
+    // CUSTOMER_MOBILE_NO field still needs *some* value on the
+    // transaction, so we fall back to a placeholder instead of
+    // blocking the user from paying.
+    const customerPhone = (customer?.phone || '').trim();
 
     // --------------------------------------------------
     // 2. Verify the logged-in Supabase user
@@ -192,7 +196,8 @@ export default async function handler(req) {
         userId: supabaseUser.id,
         name: customer.name || supabaseUser.user_metadata?.name || '',
         email: supabaseUser.email,
-        phone: customer.phone
+        phone: customerPhone,
+        phoneProvided: Boolean(customerPhone)
       },
 
       status: 'pending',
@@ -272,7 +277,10 @@ export default async function handler(req) {
       MERCHANT_NAME: 'MEDICIPATE',
       TXNAMT: String(plan.amount),
       CURRENCY_CODE: 'PKR',
-      CUSTOMER_MOBILE_NO: customer.phone,
+      // Rapid Gateway requires a value in this field even when the
+      // customer hasn't given us a phone number — fall back to a
+      // placeholder so checkout is never blocked on our side.
+      CUSTOMER_MOBILE_NO: customerPhone || FALLBACK_MOBILE_NO,
       CUSTOMER_EMAIL_ADDRESS: supabaseUser.email,
       BASKET_ID: orderId,
       SUCCESS_URL: `${origin}/payment-success.html?orderId=${encodeURIComponent(orderId)}`,
