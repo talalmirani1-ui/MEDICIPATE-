@@ -4237,6 +4237,7 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
         })
       });
       const data = await response.json().catch(() => ({}));
+      alert('DEBUG status=' + response.status + ' body=' + JSON.stringify(data));
       if(!response.ok || !data.checkout_url){
         throw new Error(data.error || 'Unable to create the payment checkout.');
       }
