@@ -2410,7 +2410,7 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
       sixMonths: { amount: 2550, original: 5994, label: '6 Months' },
       yearly:    { amount: 4800, original: 11988, label: 'Yearly' }
     },
-    paymentsLive: false, // Rapid Gateway API keys pending approval — manual payment fallback active
+    paymentsLive: true, // Rapid Gateway API keys configured — live checkout active
     menu: [
       { group:'Overview', items:[
         { id:'overview', label:'Dashboard', icon:'home' }
@@ -4213,9 +4213,19 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
     showToast('Creating secure Rapid Gateway checkout…');
 
     try {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if(!session?.access_token){
+        showToast('Your login session has expired. Please log in again.');
+        openModal('login');
+        buttons.forEach(btn => btn.disabled = false);
+        return;
+      }
       const response = await fetch('/.netlify/functions/create-payment', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token
+        },
         body: JSON.stringify({
           planId: cycle,
           customer: { name: currentUser.name, email: currentUser.email }
