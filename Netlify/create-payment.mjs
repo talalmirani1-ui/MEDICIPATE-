@@ -146,10 +146,10 @@ export default async function handler(req) {
     // --------------------------------------------------
 
     const merchantId = process.env.RG_MERCHANT_ID;
-    const clientSecret = process.env.RG_CLIENT_SECRET;
+    const clientSecret = process.env.RG_SECRET_KEY;
 
     if (!merchantId || !clientSecret) {
-      console.error('RG_MERCHANT_ID / RG_CLIENT_SECRET is missing.');
+      console.error('RG_MERCHANT_ID / RG_SECRET_KEY is missing.');
       return json(
         { error: 'Rapid Gateway credentials are not configured.' },
         500
