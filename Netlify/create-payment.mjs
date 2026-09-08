@@ -1,9 +1,23 @@
 // Netlify Function — Rapid Gateway payment checkout
 
+import { writeOrder } from './rapid-store.mjs';
+
 const PRICING = {
-  monthly:  { amount: 499,  label: 'Monthly' },
-  sixMonths: { amount: 2550, label: '6 Months' },
-  yearly:   { amount: 4800, label: 'Yearly' }
+  monthly: {
+    amount: 499,
+    label: 'Monthly',
+    days: 30
+  },
+  sixMonths: {
+    amount: 2550,
+    label: '6 Months',
+    days: 180
+  },
+  yearly: {
+    amount: 4800,
+    label: 'Yearly',
+    days: 365
+  }
 };
 
 export default async (req) => {
@@ -33,7 +47,7 @@ export default async (req) => {
       );
     }
 
-    // Unique order ID for this checkout
+    // Unique order ID
     const orderId =
       'MEDICIPATE-' +
       Date.now().toString(36).toUpperCase() +
@@ -41,16 +55,41 @@ export default async (req) => {
       crypto.randomUUID().slice(0, 8).toUpperCase();
 
     const origin = new URL(req.url).origin;
+    const now = new Date().toISOString();
 
+    // IMPORTANT:
+    // Save the order BEFORE sending the customer to Rapid Gateway.
+    await writeOrder(orderId, {
+      orderId,
+      planId,
+      planLabel: plan.label,
+      amount: plan.amount,
+      currency: 'PKR',
+      days: plan.days,
+
+      customer: {
+        name: customer.name || '',
+        email: customer.email
+      },
+
+      status: 'pending',
+      active: false,
+      createdAt: now,
+      updatedAt: now
+    });
+
+    // Create Rapid Gateway checkout
     const paymentResponse = await fetch(
       'https://api.rapidgateway.pk/v1/payments',
       {
         method: 'POST',
+
         headers: {
           'Authorization': `Bearer ${secretKey}`,
           'Content-Type': 'application/json',
           'Idempotency-Key': orderId
         },
+
         body: JSON.stringify({
           amount: plan.amount,
           currency: 'PKR',
@@ -89,10 +128,31 @@ export default async (req) => {
     if (!paymentResponse.ok) {
       console.error('Rapid Gateway error:', paymentData);
 
+      // Mark the saved order as failed
+      await writeOrder(orderId, {
+        orderId,
+        planId,
+        planLabel: plan.label,
+        amount: plan.amount,
+        currency: 'PKR',
+        days: plan.days,
+
+        customer: {
+          name: customer.name || '',
+          email: customer.email
+        },
+
+        status: 'failed',
+        active: false,
+        createdAt: now,
+        updatedAt: new Date().toISOString(),
+
+        gatewayError: paymentData
+      });
+
       return json(
         {
-          error: 'Rapid Gateway could not create the payment.',
-          details: paymentData
+          error: 'Rapid Gateway could not create the payment.'
         },
         502
       );
@@ -112,13 +172,13 @@ export default async (req) => {
 
       return json(
         {
-          error: 'Rapid Gateway did not return a checkout link.',
-          details: paymentData
+          error: 'Rapid Gateway did not return a checkout link.'
         },
         502
       );
     }
 
+    // Return checkout URL to the website
     return json({
       checkout_url: checkoutUrl,
       orderId
