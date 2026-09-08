@@ -1,114 +1,98 @@
-import crypto from 'node:crypto';
-import { readOrder, writeOrder } from './rapid-store.mjs';
+// create-payment.js
+// Runs quietly on Netlify's server — never in the customer's browser.
+// Matches what the MEDICIPATE checkout (index.html -> choosePlan()) sends and expects.
 
-const PLANS = Object.freeze({
-  monthly:    { label: 'Monthly', amount: 499,  currency: 'PKR', days: 30 },
-  six_months: { label: '6 Months', amount: 2550, currency: 'PKR', days: 180 },
-  yearly:     { label: 'Yearly', amount: 4800, currency: 'PKR', days: 365 },
-});
+const PRICING = {
+  monthly:   { amount: 499,  label: 'Monthly' },
+  sixMonths: { amount: 2550, label: '6 Months' },
+  yearly:    { amount: 4800, label: 'Yearly' },
+};
 
-const API_BASE = (process.env.RG_API_BASE_URL || 'https://api.rapidgateway.pk').replace(/\/$/, '');
-
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
-  });
-}
-
-export default async function handler(req) {
-  if (req.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
-  if (!process.env.RG_SECRET_KEY) {
-    return json({ error: 'Rapid Gateway is not configured yet. Add RG_SECRET_KEY in Netlify environment variables.' }, 503);
-  }
-
-  let body;
-  try { body = await req.json(); } catch { return json({ error: 'Invalid JSON request.' }, 400); }
-
-  const planId = String(body?.plan || '');
-  const plan = PLANS[planId];
-  if (!plan) return json({ error: 'Invalid premium plan selected.' }, 400);
-
-  const email = body?.email ? String(body.email).trim().toLowerCase() : '';
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return json({ error: 'Please enter a valid email address.' }, 400);
-  }
-
-  const orderId = `MED-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().replaceAll('-', '').slice(0, 16).toUpperCase()}`;
-  const origin = new URL(req.url).origin;
-  const returnUrl = `${origin}/?rg_return=1&orderId=${encodeURIComponent(orderId)}`;
-  const webhookUrl = process.env.RG_WEBHOOK_URL || `${origin}/.netlify/functions/rapid-webhook`;
-
-  const order = {
-    orderId,
-    planId,
-    planLabel: plan.label,
-    amount: plan.amount,
-    currency: plan.currency,
-    days: plan.days,
-    email: email || null,
-    status: 'pending',
-    createdAt: new Date().toISOString(),
-    returnUrl,
-  };
-  await writeOrder(orderId, order);
-
-  const payload = {
-    amount: plan.amount,
-    currency: plan.currency,
-    methods: ['card', 'raast', 'easypaisa', 'jazzcash', 'bank_transfer'],
-    customer: email ? { email } : {},
-    return_url: returnUrl,
-    webhook_url: webhookUrl,
-    metadata: {
-      merchant_order_id: orderId,
-      plan_id: planId,
-      product: 'MEDICIPATE Premium',
-    },
-  };
-
+export default async (req) => {
   try {
-    const gatewayRes = await fetch(`${API_BASE}/v1/payments`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.RG_SECRET_KEY}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        'Idempotency-Key': orderId,
-      },
-      body: JSON.stringify(payload),
-    });
+    const { planId, customer } = await req.json();
 
-    const gatewayData = await gatewayRes.json().catch(() => ({}));
-    if (!gatewayRes.ok || !gatewayData.checkout_url) {
-      await writeOrder(orderId, {
-        ...order,
-        status: 'gateway_error',
-        gatewayResponse: gatewayData,
-        updatedAt: new Date().toISOString(),
-      });
-      return json({ error: gatewayData?.message || gatewayData?.error || 'Rapid Gateway could not create the checkout.' }, 502);
+    const plan = PRICING[planId];
+    if (!plan) {
+      return json({ error: 'Invalid plan selected.' }, 400);
+    }
+    if (!customer || !customer.email) {
+      return json({ error: 'Missing customer details.' }, 400);
     }
 
-    await writeOrder(orderId, {
-      ...order,
-      gatewayPaymentId: gatewayData.id || gatewayData.payment_id || gatewayData.paymentId || null,
-      checkoutUrl: gatewayData.checkout_url,
-      gatewayStatus: gatewayData.status || null,
-      updatedAt: new Date().toISOString(),
+    const CLIENT_ID = process.env.RAPIDGATEWAY_CLIENT_ID;
+    const CLIENT_SECRET = process.env.RAPIDGATEWAY_CLIENT_SECRET;
+    const MERCHANT_ID = process.env.RAPIDGATEWAY_MERCHANT_ID;
+
+    if (!CLIENT_ID || !CLIENT_SECRET || !MERCHANT_ID) {
+      return json({ error: 'Server is not configured with Rapid Gateway credentials yet.' }, 500);
+    }
+
+    // Step 1 — Get a Bearer token
+    const basicAuth = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64');
+
+    const tokenRes = await fetch('https://secure.rapid-gateway.com/oauth/token', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${basicAuth}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'grant_type=client_credentials',
     });
 
-    return json({
-      orderId,
-      planId,
-      planLabel: plan.label,
-      amount: plan.amount,
-      currency: plan.currency,
-      checkout_url: gatewayData.checkout_url,
+    if (!tokenRes.ok) {
+      const errText = await tokenRes.text();
+      return json({ error: 'Could not get token from Rapid Gateway.', details: errText }, 502);
+    }
+
+    const { access_token: bearerToken } = await tokenRes.json();
+
+    // Step 2 — Create the payment / order
+    const orderId = 'MP-' + Date.now();
+    const origin = new URL(req.url).origin;
+
+    const params = new URLSearchParams({
+      merchantId: MERCHANT_ID,
+      merchantTransactionId: orderId,
+      amount: String(plan.amount),
+      currency: 'PKR',
+      description: `MEDICIPATE Premium — ${plan.label}`,
+      customerName: customer.name || '',
+      customerEmail: customer.email,
+      successUrl: `${origin}/payment-success.html`,
+      cancelUrl: `${origin}/payment-cancelled.html`,
     });
-  } catch (error) {
-    await writeOrder(orderId, { ...order, status: 'gateway_error', updatedAt: new Date().toISOString() });
-    console.error('Rapid Gateway create-payment error:', error);
-    return json({ error: 'Unable to reach Rapid Gateway. Please try again.' }, 502);
+
+    const txnRes = await fetch('https://secure.rapid-gateway.com/v1/payments', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${bearerToken}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params.toString(),
+    });
+
+    const txnData = await txnRes.json();
+
+    if (!txnRes.ok) {
+      return json({ error: 'Could not start the payment.', details: txnData }, 502);
+    }
+
+    const checkoutUrl = txnData.checkoutUrl || txnData.checkout_url || txnData.redirect_url;
+    if (!checkoutUrl) {
+      return json({ error: 'Rapid Gateway did not return a checkout link.', details: txnData }, 502);
+    }
+
+    return json({ checkout_url: checkoutUrl, orderId });
+
+  } catch (err) {
+    return json({ error: 'Unexpected server error.', details: String(err) }, 500);
   }
+};
+
+function json(obj, status = 200) {
+  return new Response(JSON.stringify(obj), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
 }
