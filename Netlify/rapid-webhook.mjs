@@ -1,115 +1,340 @@
 import crypto from 'node:crypto';
 import { readOrder, writeOrder } from './rapid-store.mjs';
 
-function textResponse(text, status = 200) {
-  return new Response(text, { status, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+function response(text = 'OK', status = 200) {
+  return new Response(text, {
+    status,
+    headers: {
+      'Content-Type': 'text/plain; charset=utf-8'
+    }
+  });
 }
 
 function constantTimeEqual(a, b) {
   if (!a || !b) return false;
+
   const aa = Buffer.from(String(a));
   const bb = Buffer.from(String(b));
-  return aa.length === bb.length && crypto.timingSafeEqual(aa, bb);
+
+  return (
+    aa.length === bb.length &&
+    crypto.timingSafeEqual(aa, bb)
+  );
 }
 
 function verifySignature(rawBody, timestamp, signature, secret) {
   if (!timestamp || !signature || !secret) return false;
+
   const ts = Number(timestamp);
-  if (!Number.isFinite(ts) || Math.abs(Math.floor(Date.now() / 1000) - ts) > 300) return false;
-  const expected = crypto.createHmac('sha256', secret)
+
+  // Rapid Gateway uses a 5-minute timestamp window.
+  if (
+    !Number.isFinite(ts) ||
+    Math.abs(Math.floor(Date.now() / 1000) - ts) > 300
+  ) {
+    return false;
+  }
+
+  const expected = crypto
+    .createHmac('sha256', secret)
     .update(`${timestamp}.${rawBody}`)
     .digest('hex')
     .toUpperCase();
-  return constantTimeEqual(expected, String(signature).toUpperCase());
+
+  return constantTimeEqual(
+    expected,
+    String(signature).toUpperCase()
+  );
 }
 
-function successEvent(event) {
-  const type = String(event?.eventType || event?.type || '').toLowerCase();
-  const status = String(event?.status || event?.data?.status || '').toUpperCase();
-  return type === 'transaction.completed' || type === 'payment.succeeded' || status === 'SUCCESS' || status === 'SUCCEEDED' || status === 'PAID';
+function getEventType(event) {
+  return String(
+    event?.eventType ||
+    event?.event_type ||
+    event?.type ||
+    ''
+  ).toLowerCase();
 }
 
-function failedEvent(event) {
-  const type = String(event?.eventType || event?.type || '').toLowerCase();
-  const status = String(event?.status || event?.data?.status || '').toUpperCase();
-  return type === 'transaction.failed' || type === 'payment.failed' || ['FAILED','DECLINED','CANCELLED'].includes(status);
+function getStatus(event) {
+  return String(
+    event?.status ||
+    event?.data?.status ||
+    ''
+  ).toUpperCase();
 }
 
-function refundedEvent(event) {
-  const type = String(event?.eventType || event?.type || '').toLowerCase();
-  const status = String(event?.status || event?.data?.status || '').toUpperCase();
-  return type.startsWith('refund.') || type.startsWith('reversal.') || ['REFUNDED','REVERSED'].includes(status);
-}
-
-export default async function handler(req) {
-  if (req.method !== 'POST') return textResponse('Method not allowed.', 405);
-  if (!process.env.RG_WEBHOOK_SECRET) return textResponse('Webhook secret not configured.', 503);
-
-  const rawBody = await req.text();
-  const signature = req.headers.get('x-rapidgateway-signature') || req.headers.get('x-rapidpay-signature');
-  const timestamp = req.headers.get('x-rapidgateway-timestamp') || req.headers.get('x-rapidpay-timestamp');
-
-  if (!verifySignature(rawBody, timestamp, signature, process.env.RG_WEBHOOK_SECRET)) {
-    return textResponse('Invalid signature.', 401);
-  }
-
-  let event;
-  try { event = JSON.parse(rawBody); } catch { return textResponse('Invalid JSON.', 400); }
-
-  // Rapid Gateway's current webhook guide uses merchantTransactionId and eventId.
-  // We also accept the common nested/legacy aliases so sandbox transitions are smoother.
-  const orderId = String(
+function getOrderId(event) {
+  return String(
     event?.merchantTransactionId ||
     event?.merchant_transaction_id ||
-    event?.metadata?.merchant_order_id ||
     event?.data?.merchantTransactionId ||
     event?.data?.merchant_transaction_id ||
+    event?.metadata?.merchant_order_id ||
     event?.data?.metadata?.merchant_order_id ||
     ''
   ).trim();
-  if (!orderId) return textResponse('Missing merchant order ID.', 400);
+}
+
+function getEventId(event) {
+  return String(
+    event?.eventId ||
+    event?.deliveryId ||
+    event?.id ||
+    ''
+  ).trim();
+}
+
+function isSuccessful(event) {
+  const type = getEventType(event);
+  const status = getStatus(event);
+
+  return (
+    type === 'transaction.completed' ||
+    type === 'payment.succeeded' ||
+    status === 'SUCCESS' ||
+    status === 'SUCCEEDED' ||
+    status === 'PAID'
+  );
+}
+
+function isFailed(event) {
+  const type = getEventType(event);
+  const status = getStatus(event);
+
+  return (
+    type === 'transaction.failed' ||
+    type === 'payment.failed' ||
+    ['FAILED', 'DECLINED', 'CANCELLED'].includes(status)
+  );
+}
+
+function isRefundedOrReversed(event) {
+  const type = getEventType(event);
+  const status = getStatus(event);
+
+  return (
+    type.startsWith('refund.') ||
+    type.startsWith('reversal.') ||
+    ['REFUNDED', 'REVERSED'].includes(status)
+  );
+}
+
+export default async function handler(req) {
+  if (req.method !== 'POST') {
+    return response('Method not allowed.', 405);
+  }
+
+  const rawBody = await req.text();
+
+  let event;
+
+  try {
+    event = JSON.parse(rawBody);
+  } catch {
+    return response('Invalid JSON.', 400);
+  }
+
+  const eventType = getEventType(event);
+
+  /*
+   * Rapid Gateway portal test event.
+   *
+   * This event does not represent a payment and must never
+   * unlock premium access or modify an order.
+   *
+   * We acknowledge it immediately so the Rapid Gateway
+   * dashboard can confirm that this endpoint is reachable.
+   */
+  if (eventType === 'webhook.test') {
+    console.log('Rapid Gateway webhook.test received.');
+    return response('OK', 200);
+  }
+
+  /*
+   * REAL PAYMENT EVENTS
+   *
+   * These MUST have a configured webhook salt.
+   */
+  const webhookSecret = process.env.RG_WEBHOOK_SECRET;
+
+  if (!webhookSecret) {
+    console.error('RG_WEBHOOK_SECRET is not configured.');
+    return response('Webhook secret not configured.', 503);
+  }
+
+  const signature =
+    req.headers.get('x-rapidgateway-signature') ||
+    req.headers.get('x-rapidpay-signature');
+
+  const timestamp =
+    req.headers.get('x-rapidgateway-timestamp') ||
+    req.headers.get('x-rapidpay-timestamp');
+
+  if (
+    !verifySignature(
+      rawBody,
+      timestamp,
+      signature,
+      webhookSecret
+    )
+  ) {
+    console.error('Rapid Gateway webhook signature verification failed.');
+    return response('Invalid signature.', 401);
+  }
+
+  const orderId = getOrderId(event);
+
+  if (!orderId) {
+    console.error('Webhook missing merchant transaction ID.');
+    return response('Missing merchant order ID.', 400);
+  }
 
   const order = await readOrder(orderId);
-  if (!order) return textResponse('Order not found.', 404);
 
-  const eventId = String(event?.eventId || event?.deliveryId || event?.id || '').trim();
-  if (eventId && order.lastEventId === eventId) return textResponse('OK');
+  if (!order) {
+    console.error('Order not found:', orderId);
+    return response('Order not found.', 404);
+  }
 
-  const gatewayAmount = Number(event?.amount ?? event?.data?.amount);
-  if (successEvent(event)) {
-    if (!Number.isFinite(gatewayAmount) || gatewayAmount !== Number(order.amount)) {
-      console.error('Rapid Gateway amount mismatch', { orderId, gatewayAmount, expected: order.amount });
-      return textResponse('Amount mismatch.', 400);
+  const eventId = getEventId(event);
+
+  /*
+   * Idempotency:
+   * Rapid Gateway may retry the same event.
+   */
+  if (eventId && order.lastEventId === eventId) {
+    return response('OK', 200);
+  }
+
+  const gatewayAmount = Number(
+    event?.amount ??
+    event?.data?.amount
+  );
+
+  /*
+   * SUCCESS
+   */
+  if (isSuccessful(event)) {
+    if (
+      !Number.isFinite(gatewayAmount) ||
+      gatewayAmount !== Number(order.amount)
+    ) {
+      console.error('Rapid Gateway amount mismatch:', {
+        orderId,
+        gatewayAmount,
+        expected: order.amount
+      });
+
+      return response('Amount mismatch.', 400);
     }
 
     const now = Date.now();
-    const unlockCode = order.unlockCode || crypto.randomBytes(9).toString('base64url').replace(/[-_]/g, '').slice(0, 12).toUpperCase();
-    const paid = {
+
+    const unlockCode =
+      order.unlockCode ||
+      crypto
+        .randomBytes(9)
+        .toString('base64url')
+        .replace(/[-_]/g, '')
+        .slice(0, 12)
+        .toUpperCase();
+
+    const paidOrder = {
       ...order,
       status: 'paid',
       active: true,
-      paidAt: order.paidAt || new Date(now).toISOString(),
-      expiresAt: order.expiresAt || now + Number(order.days) * 24 * 60 * 60 * 1000,
+
+      paidAt:
+        order.paidAt ||
+        new Date(now).toISOString(),
+
+      expiresAt:
+        order.expiresAt ||
+        now +
+          Number(order.days) *
+            24 *
+            60 *
+            60 *
+            1000,
+
       unlockCode,
-      gatewayTxnRef: event?.gatewayTxnRef || event?.data?.gatewayTxnRef || order.gatewayTxnRef || null,
-      lastEventId: eventId || order.lastEventId || null,
-      updatedAt: new Date().toISOString(),
+
+      gatewayTxnRef:
+        event?.gatewayTxnRef ||
+        event?.data?.gatewayTxnRef ||
+        order.gatewayTxnRef ||
+        null,
+
+      lastEventId:
+        eventId ||
+        order.lastEventId ||
+        null,
+
+      updatedAt: new Date().toISOString()
     };
-    await writeOrder(orderId, paid);
-    return textResponse('OK');
+
+    await writeOrder(orderId, paidOrder);
+
+    console.log(
+      'Rapid Gateway payment marked paid:',
+      orderId
+    );
+
+    return response('OK', 200);
   }
 
-  if (failedEvent(event)) {
-    await writeOrder(orderId, { ...order, status: 'failed', lastEventId: eventId || order.lastEventId || null, updatedAt: new Date().toISOString() });
-    return textResponse('OK');
+  /*
+   * FAILED PAYMENT
+   */
+  if (isFailed(event)) {
+    await writeOrder(orderId, {
+      ...order,
+      status: 'failed',
+      lastEventId:
+        eventId ||
+        order.lastEventId ||
+        null,
+      updatedAt: new Date().toISOString()
+    });
+
+    return response('OK', 200);
   }
 
-  if (refundedEvent(event)) {
-    await writeOrder(orderId, { ...order, status: String(event?.eventType || event?.type || '').toLowerCase().startsWith('refund.') ? 'refunded' : 'reversed', active: false, lastEventId: eventId || order.lastEventId || null, updatedAt: new Date().toISOString() });
-    return textResponse('OK');
+  /*
+   * REFUND / REVERSAL
+   */
+  if (isRefundedOrReversed(event)) {
+    const type = getEventType(event);
+
+    await writeOrder(orderId, {
+      ...order,
+      status: type.startsWith('refund.')
+        ? 'refunded'
+        : 'reversed',
+      active: false,
+      lastEventId:
+        eventId ||
+        order.lastEventId ||
+        null,
+      updatedAt: new Date().toISOString()
+    });
+
+    return response('OK', 200);
   }
 
-  // Test/unknown events are acknowledged so Rapid Gateway does not retry them forever.
-  await writeOrder(orderId, { ...order, lastEventId: eventId || order.lastEventId || null, updatedAt: new Date().toISOString() });
-  return textResponse('OK');
+  /*
+   * Unknown but valid signed event.
+   * Acknowledge it so Rapid Gateway does not retry forever.
+   */
+  await writeOrder(orderId, {
+    ...order,
+    lastEventId:
+      eventId ||
+      order.lastEventId ||
+      null,
+    updatedAt: new Date().toISOString()
+  });
+
+  return response('OK', 200);
 }
