@@ -3923,23 +3923,17 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
     generateBtn.textContent = 'Generating…';
     noteOutput.innerHTML = '<span class="rounds-empty">Structuring the note…</span>';
     try{
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("/.netlify/functions/rounds-notes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 1000,
-          messages: [
-            {
-              role: "user",
-              content: "You are helping a doctor turn a consult transcript into a clinical note. Convert the following transcript into a concise SOAP note (Subjective, Objective, Assessment, Plan). Use only information present in the transcript — do not invent findings. If a section has no relevant information, write \"Not documented\" for that section. Format each section header in bold on its own line, followed by the content. Output only the note, nothing else.\n\nTranscript:\n" + transcript
-            }
-          ]
-        })
+        body: JSON.stringify({ transcript })
       });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || 'Request failed');
+      }
       const data = await response.json();
-      const text = (data.content || []).map(item => item.type === 'text' ? item.text : '').filter(Boolean).join('\n');
-      roundsRenderNote(text);
+      roundsRenderNote(data.text);
       if(noteActions) noteActions.style.display = 'flex';
     }catch(err){
       noteOutput.innerHTML = '<span class="rounds-empty">Something went wrong generating the note. Please try again.</span>';
