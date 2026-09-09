@@ -22,6 +22,16 @@ const PRICING = {
 
 const FALLBACK_MOBILE_NO = '03000000000';
 
+// Mirrors CONFIG.referral.plans[*].refereeDiscount in index.html.
+// Kept server-side too so the amount actually charged always
+// matches what the discount banner promised — never trust a
+// discount amount sent from the client.
+const REFEREE_DISCOUNTS = {
+  monthly: 25,
+  sixMonths: 100,
+  yearly: 200
+};
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -65,6 +75,11 @@ export default async function handler(req) {
     // referrer later without needing to round-trip it through
     // Rapid Gateway itself.
     const referralCode = (body.referralCode || '').trim() || null;
+
+    // Recompute the discount server-side — never trust a discount
+    // amount if the client ever sent one.
+    const referralDiscount = referralCode ? (REFEREE_DISCOUNTS[planId] || 0) : 0;
+    const payAmount = plan.amount - referralDiscount;
 
     // Phone is optional for MEDICIPATE checkout. Rapid Gateway's
     // CUSTOMER_MOBILE_NO field still needs *some* value on the
@@ -194,7 +209,8 @@ export default async function handler(req) {
 
       planId,
       planLabel: plan.label,
-      amount: plan.amount,
+      amount: payAmount,
+      listAmount: plan.amount,
       currency: 'PKR',
       days: plan.days,
 
@@ -202,6 +218,7 @@ export default async function handler(req) {
       // is confirmed, so the referrer can be credited without
       // ever needing to pass this through Rapid Gateway itself.
       referralCode,
+      referralDiscount,
 
       customer: {
         userId: supabaseUser.id,
@@ -286,7 +303,7 @@ export default async function handler(req) {
     const txnBody = new URLSearchParams({
       MERCHANT_ID: merchantId,
       MERCHANT_NAME: 'MEDICIPATE',
-      TXNAMT: String(plan.amount),
+      TXNAMT: String(payAmount),
       CURRENCY_CODE: 'PKR',
       // Rapid Gateway requires a value in this field even when the
       // customer hasn't given us a phone number — fall back to a
