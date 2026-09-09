@@ -2157,6 +2157,17 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
     if(!user || !user.id) return '';
     return 'MP-' + user.id.replace(/-/g,'').slice(0,6).toUpperCase();
   }
+  function mpTierForCount(count){
+    const tiers = CONFIG.referral.tiers;
+    let current = tiers[0];
+    for(const t of tiers){ if(count >= t.min) current = t; }
+    return current;
+  }
+  function mpNextTierAfter(currentTier){
+    const tiers = CONFIG.referral.tiers;
+    const idx = tiers.findIndex(t => t.key === currentTier.key);
+    return tiers[idx + 1] || null;
+  }
   function mpReferralLinkFor(user){
     const code = mpReferralCodeFor(user);
     if(!code) return '';
@@ -2227,7 +2238,7 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
       // stay undefined and the Refer & Earn page falls back to a "not
       // connected yet" message instead of showing zeros.
       referralCount: profile.referral_count,
-      referralTier: profile.referral_tier || 'base',
+      referralTier: profile.referral_tier || 'starter',
       totalCommission: profile.total_commission
     };
     userPlan = activePro ? 'pro' : 'free';
@@ -2478,24 +2489,27 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
     },
     paymentsLive: true, // Rapid Gateway API keys configured — live checkout active
     referral: {
-      eliteThreshold: 100, // successful referrals needed to unlock Level 1 Elite
-      baseRatePercent: 10,
-      eliteRatePercent: 20,
+      // Reward ramps up in 5 tiers as a referrer's successful (paid)
+      // referral count grows — starts low, climbs toward Elite instead
+      // of jumping straight to a flat 10%/20%.
+      refereeDiscounts: { yearly: 200, sixMonths: 100, monthly: 25 },
+      tiers: [
+        { min: 0,  key: 'starter', name: 'Starter',      ratePercent: 3,  commission: { yearly: 150,  sixMonths: 75,  monthly: 0 } },
+        { min: 3,  key: 'rising',  name: 'Rising Star',  ratePercent: 5,  commission: { yearly: 250,  sixMonths: 125, monthly: 0 } },
+        { min: 10, key: 'pro',     name: 'Pro Referrer', ratePercent: 8,  commission: { yearly: 400,  sixMonths: 200, monthly: 0 } },
+        { min: 25, key: 'top',     name: 'Top Referrer', ratePercent: 12, commission: { yearly: 600,  sixMonths: 300, monthly: 0 } },
+        { min: 50, key: 'elite',   name: 'Elite',        ratePercent: 20, commission: { yearly: 1000, sixMonths: 500, monthly: 0 } }
+      ],
+      // Back-compat shim so any old code reading CONFIG.referral.plans[x].refereeDiscount still works.
       plans: {
-        // refereeDiscount = Rs off for the friend who buys using a referral link/code
-        // commissionBase  = referrer's payout per signup before hitting Elite status
-        // commissionElite = referrer's payout per signup after 100 successful referrals
-        yearly:    { refereeDiscount: 200, commissionBase: 500, commissionElite: 1000 },
-        sixMonths: { refereeDiscount: 100, commissionBase: 250, commissionElite: 500 },
-        monthly:   { refereeDiscount: 25,  commissionBase: 0,   commissionElite: 0 }
+        yearly:    { refereeDiscount: 200 },
+        sixMonths: { refereeDiscount: 100 },
+        monthly:   { refereeDiscount: 25 }
       }
     },
     menu: [
       { group:'Overview', items:[
         { id:'overview', label:'Dashboard', icon:'home' }
-      ]},
-      { group:'Refer & Earn', items:[
-        { id:'referral', label:'Refer & Earn', icon:'gift' }
       ]},
       { group:'Study', items:[
         { id:'qbank', label:'Question Bank', icon:'book' },
@@ -2665,6 +2679,7 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
     // change made on the backend takes effect immediately instead of
     // requiring a full logout/login.
     await refreshPlanStatus();
+    if(id === 'referral') await mpLoadWithdrawals();
 
     const content = document.getElementById('dashContent');
     content.innerHTML = renderSection(id);
@@ -3191,6 +3206,147 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
     `;
   }
 
+  /* ---- REFERRAL WITHDRAWALS ---- */
+  const WITHDRAWAL_MIN_AMOUNT = 500;
+  let mpWithdrawalsCache = [];
+
+  async function mpLoadWithdrawals(){
+    if(!supabaseClient || !currentUser?.id){ mpWithdrawalsCache = []; return; }
+    try{
+      const { data, error } = await supabaseClient
+        .from('withdrawal_requests')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false });
+      if(error){ console.error('withdrawals load failed', error); mpWithdrawalsCache = []; return; }
+      mpWithdrawalsCache = data || [];
+    }catch(e){ console.error(e); mpWithdrawalsCache = []; }
+  }
+
+  function mpAvailableBalance(){
+    const earned = Number(currentUser?.totalCommission || 0);
+    const claimed = mpWithdrawalsCache
+      .filter(w => w.status !== 'rejected')
+      .reduce((sum, w) => sum + Number(w.amount || 0), 0);
+    return Math.max(0, earned - claimed);
+  }
+
+  function mpWithdrawalStatusBadge(status){
+    if(status === 'paid') return '<span style="color:#0b7f79; font-weight:700;">✅ Paid</span>';
+    if(status === 'rejected') return '<span style="color:var(--coral); font-weight:700;">✕ Rejected</span>';
+    return '<span style="color:#9a7b00; font-weight:700;">⏳ Pending</span>';
+  }
+
+  function openWithdrawModal(){
+    const available = mpAvailableBalance();
+    if(available < WITHDRAWAL_MIN_AMOUNT){
+      showToast(`You need at least Rs ${WITHDRAWAL_MIN_AMOUNT} available to withdraw (you have Rs ${available}).`);
+      return;
+    }
+
+    let el = document.getElementById('withdrawOverlay');
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'withdrawOverlay';
+      el.style.cssText = 'position:fixed; inset:0; background:rgba(11,30,61,0.55); display:flex; align-items:center; justify-content:center; z-index:9999; padding:16px;';
+      document.body.appendChild(el);
+    }
+
+    el.innerHTML = `
+      <div style="background:#fff; border-radius:16px; max-width:420px; width:100%; padding:22px; max-height:90vh; overflow-y:auto;">
+        <h3 style="margin:0 0 6px; color:var(--navy-deep);">Withdraw earnings</h3>
+        <p style="margin:0 0 16px; color:var(--slate); font-size:.88rem;">Available balance: <strong>Rs ${available}</strong>. Minimum withdrawal is Rs ${WITHDRAWAL_MIN_AMOUNT}.</p>
+
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div>
+            <label style="display:block; font-size:.82rem; font-weight:600; margin-bottom:4px;">Amount (Rs)</label>
+            <input id="wdAmount" type="number" min="${WITHDRAWAL_MIN_AMOUNT}" max="${available}" value="${available}" style="width:100%; padding:10px; border-radius:10px; border:1px solid rgba(11,30,61,0.2);">
+          </div>
+          <div>
+            <label style="display:block; font-size:.82rem; font-weight:600; margin-bottom:4px;">Payout method</label>
+            <select id="wdMethod" style="width:100%; padding:10px; border-radius:10px; border:1px solid rgba(11,30,61,0.2);">
+              <option value="jazzcash">JazzCash</option>
+              <option value="easypaisa">Easypaisa</option>
+              <option value="bank">Bank transfer</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block; font-size:.82rem; font-weight:600; margin-bottom:4px;">Account number / IBAN</label>
+            <input id="wdAccount" type="text" placeholder="03XXXXXXXXX or IBAN" style="width:100%; padding:10px; border-radius:10px; border:1px solid rgba(11,30,61,0.2);">
+          </div>
+          <div>
+            <label style="display:block; font-size:.82rem; font-weight:600; margin-bottom:4px;">Account holder name</label>
+            <input id="wdTitle" type="text" value="${escapeHtml(currentUser?.name || '')}" style="width:100%; padding:10px; border-radius:10px; border:1px solid rgba(11,30,61,0.2);">
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:18px;">
+          <button class="btn btn-ghost" style="flex:1; border-color:rgba(11,30,61,0.2); color:var(--navy-deep);" onclick="closeWithdrawModal()">Cancel</button>
+          <button class="btn btn-coral" style="flex:1;" onclick="submitWithdrawRequest()">Submit request</button>
+        </div>
+      </div>
+    `;
+    el.style.display = 'flex';
+  }
+
+  function closeWithdrawModal(){
+    const el = document.getElementById('withdrawOverlay');
+    if(el) el.style.display = 'none';
+  }
+
+  async function submitWithdrawRequest(){
+    const available = mpAvailableBalance();
+    const amount = Math.round(Number(document.getElementById('wdAmount')?.value || 0));
+    const method = document.getElementById('wdMethod')?.value || 'jazzcash';
+    const account = (document.getElementById('wdAccount')?.value || '').trim();
+    const title = (document.getElementById('wdTitle')?.value || '').trim();
+
+    if(!amount || amount < WITHDRAWAL_MIN_AMOUNT){
+      showToast(`Minimum withdrawal is Rs ${WITHDRAWAL_MIN_AMOUNT}.`); return;
+    }
+    if(amount > available){
+      showToast(`You only have Rs ${available} available.`); return;
+    }
+    if(!account){
+      showToast('Please enter your account number.'); return;
+    }
+
+    try{
+      const { error } = await supabaseClient
+        .from('withdrawal_requests')
+        .insert({
+          user_id: currentUser.id,
+          amount,
+          method,
+          account_number: account,
+          account_title: title || null
+        });
+
+      if(error){
+        console.error('withdrawal insert failed', error);
+        showToast('Could not submit your request — please try again.');
+        return;
+      }
+
+      closeWithdrawModal();
+      showToast('Withdrawal request submitted!');
+
+      // Also ping the admin on WhatsApp so payout doesn't wait on someone
+      // checking the Supabase table — the request itself is already
+      // safely recorded either way.
+      const waMsg = encodeURIComponent(
+        `Hi MEDICIPATE, I'd like to withdraw my referral earnings.\nName: ${currentUser?.name || ''}\nEmail: ${currentUser?.email || ''}\nAmount: Rs ${amount}\nMethod: ${method}\nAccount: ${account}${title ? ` (${title})` : ''}`
+      );
+      window.open(`https://wa.me/${MANUAL_PAYMENT_DETAILS.whatsapp}?text=${waMsg}`, '_blank');
+
+      await mpLoadWithdrawals();
+      if(activeSection === 'referral') showSection('referral');
+    }catch(e){
+      console.error(e);
+      showToast('Could not submit your request — please try again.');
+    }
+  }
+
   /* ---- REFER & EARN ---- */
   function renderReferral(){
     if(!currentUser){
@@ -3205,55 +3361,76 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
     const stats = mpReferralStats();
     const tracked = typeof currentUser.referralCount === 'number';
     const count = tracked ? currentUser.referralCount : 0;
-    const isElite = currentUser.referralTier === 'elite' || count >= r.eliteThreshold;
-    const commission = isElite ? 'commissionElite' : 'commissionBase';
-    const rate = isElite ? r.eliteRatePercent : r.baseRatePercent;
-    const toElite = Math.max(0, r.eliteThreshold - count);
-    const progressPct = Math.min(100, Math.round((count / r.eliteThreshold) * 100));
+    const tier = mpTierForCount(count);
+    const nextTier = mpNextTierAfter(tier);
+    const isElite = tier.key === 'elite';
+    const rate = tier.ratePercent;
+    const toNext = nextTier ? Math.max(0, nextTier.min - count) : 0;
+    const progressPct = nextTier ? Math.min(100, Math.round(((count - tier.min) / (nextTier.min - tier.min)) * 100)) : 100;
     const waMessage = encodeURIComponent(`Help fellow medical aspirants access elite exam preparation — join MEDICIPATE with my referral code ${code} and get a discount on your plan: ${link}`);
     return `
       <div class="dash-head">
         <h2>Refer &amp; Earn</h2>
-        <p>Help fellow medical aspirants access elite exam preparation while generating substantial revenue. Share MEDICIPATE, support your peers, and earn guaranteed cash commissions on every subscription.</p>
+        <p>Help fellow medical aspirants access elite exam preparation while generating real income. Share MEDICIPATE, support your peers, and earn cash commissions that grow the more you refer.</p>
       </div>
 
       <div class="dash-grid cols-4" style="margin-bottom:22px;">
-        <div class="stat-card"><div class="num accent">${isElite ? 'Level 1 Elite' : 'Base'}</div><div class="label">Your status (${rate}% commission)</div></div>
+        <div class="stat-card"><div class="num accent">${tier.name}</div><div class="label">Your status (${rate}% commission)</div></div>
         <div class="stat-card"><div class="num">${tracked ? count : '—'}</div><div class="label">Successful referrals</div></div>
         <div class="stat-card"><div class="num">${tracked && typeof currentUser.totalCommission === 'number' ? 'Rs ' + currentUser.totalCommission : '—'}</div><div class="label">Total commission earned</div></div>
         <div class="stat-card"><div class="num">${stats.shares || 0}</div><div class="label">Times you've shared</div></div>
       </div>
 
-      ${!isElite ? `
+      ${tracked ? `
+      <div class="list-card" style="padding:18px 20px; margin-bottom:22px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:14px;">
+        <div>
+          <div class="lr-sub" style="margin-bottom:4px;">Available to withdraw</div>
+          <div style="font-size:1.4rem; font-weight:800; color:var(--navy-deep);">Rs ${mpAvailableBalance()}</div>
+        </div>
+        <button class="btn btn-coral" onclick="openWithdrawModal()">Withdraw earnings</button>
+      </div>` : ''}
+
+      ${nextTier ? `
       <div class="list-card" style="padding:18px 20px; margin-bottom:22px;">
         <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;">
-          <strong style="color:var(--navy-deep); font-size:.92rem;">Progress to Level 1 Elite (20% commission)</strong>
-          <span class="lr-sub">${tracked ? `${toElite} more to go` : 'Live tracking not connected yet'}</span>
+          <strong style="color:var(--navy-deep); font-size:.92rem;">Progress to ${nextTier.name} (${nextTier.ratePercent}% commission)</strong>
+          <span class="lr-sub">${tracked ? `${toNext} more to go` : 'Live tracking not connected yet'}</span>
         </div>
         <div style="height:8px; border-radius:6px; background:rgba(11,30,61,0.08); overflow:hidden;">
           <div style="height:100%; width:${tracked ? progressPct : 0}%; background:var(--teal); border-radius:6px;"></div>
         </div>
       </div>` : `
       <div class="list-card" style="padding:16px 20px; margin-bottom:22px; border-color:rgba(18,163,154,0.3); background:rgba(18,163,154,0.06);">
-        <strong style="color:#0b7f79;">🏆 You've unlocked Level 1 Elite — 20% commission on every future sale.</strong>
+        <strong style="color:#0b7f79;">🏆 You've unlocked Elite — 20% commission on every future sale.</strong>
       </div>`}
+
+      <div class="dash-head" style="margin-top:6px;"><h2 style="font-size:1.15rem;">Reward Tiers</h2></div>
+      <div class="dash-grid" style="margin-bottom:22px;">
+        ${r.tiers.map(t => `
+          <div class="dash-card" style="${t.key === tier.key ? 'border-color:rgba(18,163,154,0.5); background:rgba(18,163,154,0.06);' : ''}">
+            <div class="dc-icon" style="background:${t.key===tier.key ? 'rgba(18,163,154,0.18)' : 'rgba(11,30,61,0.08)'}; color:${t.key===tier.key ? 'var(--teal)' : 'var(--navy)'};">${t.key==='elite' ? '🏆' : '🎯'}</div>
+            <h4>${t.name} ${t.key===tier.key ? '(you)' : ''}</h4>
+            <p>${t.min}+ successful referrals · Rs ${t.commission.yearly} on Yearly · Rs ${t.commission.sixMonths} on 6-Month (${t.ratePercent}%)</p>
+          </div>
+        `).join('')}
+      </div>
 
       <div class="dash-head" style="margin-top:6px;"><h2 style="font-size:1.15rem;">Direct Cash Rewards</h2></div>
       <div class="dash-grid" style="margin-bottom:22px;">
         <div class="dash-card">
           <div class="dc-icon" style="background:rgba(18,163,154,0.12); color:var(--teal);">💰</div>
           <h4>Yearly Subscription — Rs ${CONFIG.pricing.yearly.amount}</h4>
-          <p>Earn Rs ${r.plans.yearly[commission]} per signup (${rate}% commission)</p>
+          <p>Earn Rs ${tier.commission.yearly} per signup (${rate}% commission)</p>
         </div>
         <div class="dash-card">
           <div class="dc-icon" style="background:rgba(232,84,62,0.1); color:var(--coral);">💰</div>
           <h4>6-Month Subscription — Rs ${CONFIG.pricing.sixMonths.amount}</h4>
-          <p>Earn Rs ${r.plans.sixMonths[commission]} per signup (${rate}% commission)</p>
+          <p>Earn Rs ${tier.commission.sixMonths} per signup (${rate}% commission)</p>
         </div>
         <div class="dash-card">
           <div class="dc-icon" style="background:rgba(11,30,61,0.08); color:var(--navy);">🎁</div>
           <h4>Your friend's discount</h4>
-          <p>Rs ${r.plans.yearly.refereeDiscount} off Yearly · Rs ${r.plans.sixMonths.refereeDiscount} off 6-Month · Rs ${r.plans.monthly.refereeDiscount} off Monthly when they use your link.</p>
+          <p>Rs ${r.refereeDiscounts.yearly} off Yearly · Rs ${r.refereeDiscounts.sixMonths} off 6-Month · Rs ${r.refereeDiscounts.monthly} off Monthly when they use your link.</p>
         </div>
       </div>
 
@@ -3272,6 +3449,21 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
         </div>
       </div>
 
+      ${mpWithdrawalsCache.length ? `
+      <div class="dash-head" style="margin-top:6px;"><h2 style="font-size:1.15rem;">Withdrawal history</h2></div>
+      <div class="list-card" style="padding:6px 0; margin-bottom:22px;">
+        ${mpWithdrawalsCache.map(w => `
+          <div class="list-row" style="padding:12px 20px;">
+            <div class="system-pill">💸</div>
+            <div>
+              <div class="lr-title">Rs ${w.amount} — ${escapeHtml(w.method)}</div>
+              <div class="lr-sub">${new Date(w.created_at).toLocaleDateString()} · ${escapeHtml(w.account_number)}</div>
+            </div>
+            <div class="lr-right">${mpWithdrawalStatusBadge(w.status)}</div>
+          </div>
+        `).join('')}
+      </div>` : ''}
+
       <div class="dash-head" style="margin-top:6px;"><h2 style="font-size:1.15rem;">How it works</h2></div>
       <div class="dash-grid">
         <div class="dash-card">
@@ -3286,8 +3478,8 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
         </div>
         <div class="dash-card">
           <div class="dc-icon" style="background:rgba(11,30,61,0.08); color:var(--navy);">🎁</div>
-          <h4>3. You earn cash</h4>
-          <p>Reach ${r.eliteThreshold} successful referrals to unlock Level 1 Elite and double your commission rate on every sale after that.</p>
+          <h4>3. You earn cash — and level up</h4>
+          <p>Every successful referral earns cash immediately, and pushes you toward the next tier for an even bigger payout on your next sale.</p>
         </div>
       </div>
     `;
@@ -4045,6 +4237,9 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
             <button class="mp-profile-action" onclick="showSection('upgrade')">
               <span>💳</span><span>${info.active ? 'Manage / Renew Premium' : 'Upgrade to Premium'}</span><span>›</span>
             </button>
+            <button class="mp-profile-action" onclick="showSection('referral')">
+              <span>🎁</span><span>Refer &amp; Earn</span><span>›</span>
+            </button>
             <button class="mp-profile-action" onclick="showSection('performance')">
               <span>📊</span><span>My Performance</span><span>›</span>
             </button>
@@ -4358,7 +4553,9 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
         <div class="mp-plan-grid">
           <div class="mp-plan-card">
             <div class="mp-plan-name">Monthly</div>
-            <div class="mp-plan-price">Rs ${p.monthly.amount.toLocaleString()}</div>
+            ${(() => { const d = mpPendingReferral() ? (CONFIG.referral.plans.monthly?.refereeDiscount || 0) : 0; return d
+              ? `<div class="mp-plan-price"><span style="text-decoration:line-through; opacity:.5; font-size:.6em; margin-right:6px;">Rs ${p.monthly.amount.toLocaleString()}</span>Rs ${(p.monthly.amount-d).toLocaleString()}</div>`
+              : `<div class="mp-plan-price">Rs ${p.monthly.amount.toLocaleString()}</div>`; })()}
             <div class="mp-plan-unit">/month</div>
             <div class="mp-plan-note">Full Premium<br>access</div>
             <button class="mp-plan-action" onclick="choosePlan('monthly', this)">Choose Monthly</button>
@@ -4366,7 +4563,9 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
 
           <div class="mp-plan-card">
             <div class="mp-plan-name">6 Months</div>
-            <div class="mp-plan-price">Rs ${p.sixMonths.amount.toLocaleString()}</div>
+            ${(() => { const d = mpPendingReferral() ? (CONFIG.referral.plans.sixMonths?.refereeDiscount || 0) : 0; return d
+              ? `<div class="mp-plan-price"><span style="text-decoration:line-through; opacity:.5; font-size:.6em; margin-right:6px;">Rs ${p.sixMonths.amount.toLocaleString()}</span>Rs ${(p.sixMonths.amount-d).toLocaleString()}</div>`
+              : `<div class="mp-plan-price">Rs ${p.sixMonths.amount.toLocaleString()}</div>`; })()}
             <div class="mp-plan-unit">/6 months</div>
             <div class="mp-plan-note">Rs ${Math.round(p.sixMonths.amount/6).toLocaleString()}/month</div>
             <button class="mp-plan-action" onclick="choosePlan('sixMonths', this)">Choose 6 Months</button>
@@ -4375,7 +4574,9 @@ src="https://www.facebook.com/tr?id=4410083635907918&ev=PageView&noscript=1"
           <div class="mp-plan-card best">
             <div class="mp-best-badge">BEST VALUE</div>
             <div class="mp-plan-name">Yearly</div>
-            <div class="mp-plan-price">Rs ${p.yearly.amount.toLocaleString()}</div>
+            ${(() => { const d = mpPendingReferral() ? (CONFIG.referral.plans.yearly?.refereeDiscount || 0) : 0; return d
+              ? `<div class="mp-plan-price"><span style="text-decoration:line-through; opacity:.5; font-size:.6em; margin-right:6px;">Rs ${p.yearly.amount.toLocaleString()}</span>Rs ${(p.yearly.amount-d).toLocaleString()}</div>`
+              : `<div class="mp-plan-price">Rs ${p.yearly.amount.toLocaleString()}</div>`; })()}
             <div class="mp-plan-unit">/year</div>
             <div class="mp-plan-note">Rs ${Math.round(p.yearly.amount/12).toLocaleString()}/month<br>approx.</div>
             <button class="mp-plan-action" onclick="choosePlan('yearly', this)">Choose Yearly</button>
