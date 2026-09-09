@@ -63,12 +63,12 @@ exports.handler = async (event) => {
     { role: 'user', parts: [{ text: message }] }
   ];
 
-  // NOTE: model name confirmed working — "gemini-1.5-flash" was returning a 404
-  // NOT_FOUND from Google (that model name has been retired for this API version).
-  // "gemini-2.5-flash" is the current supported model.
+  // NOTE: model name confirmed working — "gemini-2.5-flash" was retired by Google
+  // in Sep 2026 (returning a 404 NOT_FOUND). "gemini-3.6-flash" is the current
+  // supported model.
   try {
     const response = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent',
       {
         method: 'POST',
         headers: {
