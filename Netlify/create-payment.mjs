@@ -60,6 +60,12 @@ export default async function handler(req) {
       return json({ error: 'Missing customer email.' }, 400);
     }
 
+    // Referral code the customer arrived with (?ref=CODE), if any.
+    // Stored on the pending order now so the webhook can credit the
+    // referrer later without needing to round-trip it through
+    // Rapid Gateway itself.
+    const referralCode = (body.referralCode || '').trim() || null;
+
     // Phone is optional for MEDICIPATE checkout. Rapid Gateway's
     // CUSTOMER_MOBILE_NO field still needs *some* value on the
     // transaction, so we fall back to a placeholder instead of
@@ -191,6 +197,11 @@ export default async function handler(req) {
       amount: plan.amount,
       currency: 'PKR',
       days: plan.days,
+
+      // Referral attribution — read by the webhook once payment
+      // is confirmed, so the referrer can be credited without
+      // ever needing to pass this through Rapid Gateway itself.
+      referralCode,
 
       customer: {
         userId: supabaseUser.id,
