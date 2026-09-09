@@ -120,6 +120,74 @@ function isRefundedOrReversed(event) {
   );
 }
 
+// --------------------------------------------------------------
+// Supabase: flip profiles.is_pro = true on confirmed payment.
+//
+// Uses the SERVICE ROLE key (server-side only, never exposed to
+// the client) because this write needs to bypass row-level
+// security — the webhook isn't an authenticated end user.
+//
+// This is the piece that makes the referral commission trigger
+// (see referral_program.sql) actually fire for Rapid Gateway
+// payments: the trigger listens for is_pro flipping to true.
+// --------------------------------------------------------------
+async function markProInSupabase(order) {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    console.error(
+      'SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY missing — cannot mark profile pro or attribute referral.'
+    );
+    return { ok: false, error: 'Supabase service role not configured.' };
+  }
+
+  if (!order?.userId) {
+    console.error('Order has no userId — cannot update Supabase profile.', order?.orderId);
+    return { ok: false, error: 'Order missing userId.' };
+  }
+
+  const patch = {
+    is_pro: true,
+    plan_id: order.planId || null
+  };
+
+  // Only set referred_by_code if this order actually carried a
+  // referral code AND the profile doesn't already have one set
+  // (first referral wins — avoids overwriting an earlier valid
+  // attribution on a renewal/second purchase).
+  if (order.referralCode) {
+    patch.referred_by_code = order.referralCode;
+  }
+
+  try {
+    const res = await fetch(
+      `${supabaseUrl}/rest/v1/profiles?id=eq.${encodeURIComponent(order.userId)}`,
+      {
+        method: 'PATCH',
+        headers: {
+          apikey: serviceRoleKey,
+          Authorization: `Bearer ${serviceRoleKey}`,
+          'Content-Type': 'application/json',
+          Prefer: 'return=minimal'
+        },
+        body: JSON.stringify(patch)
+      }
+    );
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      console.error('Supabase profile update failed:', res.status, text);
+      return { ok: false, error: text || ('HTTP ' + res.status) };
+    }
+
+    return { ok: true };
+  } catch (err) {
+    console.error('Supabase profile update threw:', err);
+    return { ok: false, error: String(err) };
+  }
+}
+
 export default async function handler(req) {
   if (req.method !== 'POST') {
     return response('Method not allowed.', 405);
@@ -276,10 +344,43 @@ export default async function handler(req) {
 
     await writeOrder(orderId, paidOrder);
 
-    console.log(
-      'Rapid Gateway payment marked paid:',
-      orderId
-    );
+    // --------------------------------------------------
+    // Flip profiles.is_pro = true in Supabase.
+    //
+    // This is what actually unlocks Premium in the app (the
+    // dashboard reads is_pro from Supabase, not from this blob
+    // store) AND is what fires the referral commission trigger,
+    // since that trigger watches for is_pro flipping to true.
+    //
+    // We log failures but still return 200 to Rapid Gateway —
+    // the payment itself succeeded and is recorded above; a
+    // Supabase hiccup here shouldn't make Rapid Gateway retry
+    // the whole payment event indefinitely. If this fails, the
+    // order is marked 'paid' but 'supabaseSyncPending' so it can
+    // be reconciled manually.
+    // --------------------------------------------------
+    const supabaseResult = await markProInSupabase(paidOrder);
+
+    if (!supabaseResult.ok) {
+      console.error(
+        'Payment marked paid but Supabase sync failed — needs manual reconciliation:',
+        orderId,
+        supabaseResult.error
+      );
+
+      await writeOrder(orderId, {
+        ...paidOrder,
+        supabaseSyncPending: true,
+        supabaseSyncError: supabaseResult.error,
+        updatedAt: new Date().toISOString()
+      });
+    } else {
+      console.log(
+        'Rapid Gateway payment marked paid and Supabase profile updated:',
+        orderId,
+        order.referralCode ? `(referral: ${order.referralCode})` : ''
+      );
+    }
 
     return response('OK', 200);
   }
